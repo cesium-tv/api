@@ -1,0 +1,72 @@
+version: "3.4"
+
+services:
+  api:
+    image: cesium/api
+    build:
+      dockerfile: ./docker/api/Dockerfile
+      context: .
+    depends_on:
+      - db
+      - redis
+    ports:
+      - 8000:8000
+    volumes:
+      - ./docker/api/entrypoint.sh:/entrypoint.sh:ro
+      - ./api:/app
+    environment:
+      - DJANGO_DEBUG=true
+      - DJANGO_DB_HOST=db
+      - DJANGO_DB_USER=user
+      - DJANGO_DB_PASSWORD=password
+      - DJANGO_SU_USERNAME=btimby
+      - DJANGO_SU_EMAIL=btimby_indy@yahoo.com
+      - DJANGO_SU_PASSWORD=password
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,cesium.tv,192.168.1.101
+    env_file:
+      # See .env.template for instructions.
+      - .env
+
+  beat:
+    image: cesium/api
+    command: beat
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./docker/api/entrypoint.sh:/entrypoint.sh:ro
+      - ./api:/app:ro
+    environment:
+      - DJANGO_DB_HOST=db
+      - DJANGO_DB_USER=user
+      - DJANGO_DB_PASSWORD=password
+    env_file:
+      # See .env.template for instructions.
+      - .env
+
+  celery:
+    image: cesium/api
+    command: celery
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./docker/api/entrypoint.sh:/entrypoint.sh:ro
+      - ./api:/app:ro
+    environment:
+      - DJANGO_DB_HOST=db
+      - DJANGO_DB_USER=user
+      - DJANGO_DB_PASSWORD=password
+    env_file:
+      # See .env.template for instructions.
+      - .env
+
+  db:
+    image: postgres:14-alpine
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=cesium
+
+  redis:
+    image: redis:alpine

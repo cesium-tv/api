@@ -1,0 +1,15 @@
+{% extends "mail_templated/base.tpl" %}
+
+{% block subject %}
+Confirm your email address
+{% endblock %}
+
+{% block body %}
+Click below to confirm your email address. If you did not request this email, please ignore it.
+
+{{ url|safe }}
+{% endblock %}
+
+{% block html %}
+<p><a href="{{ url|safe }}">Click here</a> to confirm your email address. If you did not request this email, please ignore it.</p>
+{% endblock %}

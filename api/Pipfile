@@ -1,0 +1,32 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+django = "*"
+djangorestframework = "*"
+hashids = "*"
+uwsgi = "*"
+django-extensions = "*"
+django-celery-beat = "*"
+psycopg2-binary = "*"
+celery = "*"
+redis = "*"
+django-redis = "*"
+django-mailjet = "*"
+django-celery-email = "*"
+django-mail-templated = "*"
+django-cache-memoize = "*"
+drf_recaptcha = "*"
+vidsrc = {path = "./vidsrc-0.1.0.tar.gz"}
+django-debug-toolbar = "*"
+django-cors-headers = "*"
+
+[dev-packages]
+flake8 = "*"
+whitenoise = "*"
+django-compress-staticfiles = "*"
+
+[requires]
+python_version = "3"
