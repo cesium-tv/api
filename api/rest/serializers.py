@@ -115,7 +115,11 @@ class VideoSerializer(serializers.ModelSerializer):
     def get_sources(self, obj):
         sources = {}
         for source in obj.sources.all():
-            sources[source.dimension] = source.url
+            sources[source.dimension] = {
+                'url': source.url,
+                'width': source.width,
+                'height': source.height,
+            }
         return sources
 
     def get_channel(self, obj):

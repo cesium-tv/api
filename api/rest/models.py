@@ -257,8 +257,8 @@ class VideoSourceManager(HashidsManagerMixin, models.Manager):
             width = props['meta']['w']
             url = props['url']
 
-            VideoSource.objects.create(
-                video=video, width=width, height=height, url=url
+            VideoSource.objects.update_or_create(
+                video=video, width=width, height=height, defaults={'url': url}
             )
 
 
