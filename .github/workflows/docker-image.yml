@@ -1,0 +1,32 @@
+name: build docker image
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v2
+
+      - name: Create tag
+        run: echo "tag=$(date +%s)" >> $GITHUB_ENV
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: build and push api
+        run: |
+          docker build -f docker/api/Dockerfile \
+            --tag ${{secrets.DOCKER_ORG}}/api:latest \
+            --tag ${{secrets.DOCKER_ORG}}/api:${{env.tag}} \
+            .
+          docker push ${{secrets.DOCKER_ORG}}/api:latest
+          docker push ${{secrets.DOCKER_ORG}}/api:${{env.tag}}
