@@ -33,10 +33,10 @@ from rest_framework.permissions import (
 
 from rest.permissions import CreateOrIsAuthenticated
 from rest.serializers import (
-    UserSerializer, PlatformSerializer, ChannelSerializer, VideoSerializer,
+    UserSerializer, PublisherSerializer, ChannelSerializer, VideoSerializer,
 )
 from rest.models import (
-    Platform, Video, Channel, UserVideo, UserLike, UserDislike,
+    Publisher, Video, Channel, UserPlay, UserLike,
 )
 
 
@@ -88,13 +88,13 @@ class UserViewSet(ModelViewSet):
         return HttpResponseRedirect(next)
 
 
-class PlatformViewSet(ModelViewSet):
+class PublisherViewSet(ModelViewSet):
     permission_classes = [AllowAny]
-    serializer_class = PlatformSerializer
+    serializer_class = PublisherSerializer
     lookup_field = 'uid'
 
     def get_queryset(self):
-        queryset = Platform.objects \
+        queryset = Publisher.objects \
             .annotate(
                 num_channels=Count('channels'),
             ) \
@@ -128,14 +128,11 @@ class VideoViewSet(ModelViewSet):
             .order_by('-published') \
             .annotate(
                 num_plays=Count('plays'),
-                num_likes=Count('likes'),
-                num_dislikes=Count('dislikes'),
-                # played=Exists(UserVideo.objects.filter(video_id=OuterRef('pk'), user=self.request.user)),
-                # liked=Exists(UserLike.objects.filter(video_id=OuterRef('pk'), user=self.request.user)),
-                # disliked=Exists(UserDislike.objects.filter(video_id=OuterRef('pk'), user=self.request.user)),
-                played=Exists(UserVideo.objects.filter(video_id=OuterRef('pk'), user_id=1)),
-                liked=Exists(UserLike.objects.filter(video_id=OuterRef('pk'), user_id=1)),
-                disliked=Exists(UserDislike.objects.filter(video_id=OuterRef('pk'), user_id=1)),
+                num_likes=Count(UserLike.objects.filter(video_id=OuterRef('pk'), like=1)),
+                num_dislikes=Count(UserLike.objects.filter(video_id=OuterRef('pk'), like=-1)),
+                played=Exists(UserPlay.objects.filter(video_id=OuterRef('pk'), user_id=1)),
+                liked=Exists(UserLike.objects.filter(video_id=OuterRef('pk'), user_id=1, like=1)),
+                disliked=Exists(UserDislike.objects.filter(video_id=OuterRef('pk'), user_id=1, like=-1)),
             ) \
             .all()
         channel_id = self.request.query_params.get('channel')

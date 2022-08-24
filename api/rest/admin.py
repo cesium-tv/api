@@ -1,3 +1,4 @@
+from django.db.models import Count
 from django.contrib import admin
 from django.contrib.auth.forms import (
     UserCreationForm as BaseUserCreationForm,
@@ -6,7 +7,7 @@ from django.contrib.auth.forms import (
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from rest.models import User, Platform, Channel, Video, VideoSource
+from rest.models import User, Publisher, Channel, Video, VideoSource
 
 
 class UserCreationForm(BaseUserCreationForm):
@@ -46,16 +47,32 @@ class ChannelInline(admin.TabularInline):
     model = Channel
 
 
-@admin.register(Platform)
-class PlatformAdmin(admin.ModelAdmin):
-    list_display = ('name', "url", )
+@admin.register(Publisher)
+class PublisherAdmin(admin.ModelAdmin):
+    list_display = ('name', "channel_count", "url", )
     inlines = (ChannelInline, )
+
+    def channel_count(self, obj):
+        return obj.channel_count
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        queryset = queryset.annotate(channel_count=Count("channels"))
+        return queryset
 
 
 @admin.register(Channel)
 class ChannelAdmin(admin.ModelAdmin):
-    list_display = ("name", "url")
-    list_filter = ('platform', )
+    list_display = ("name", "video_count", "url")
+    list_filter = ('publisher', )
+
+    def video_count(self, obj):
+        return obj.video_count
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        queryset = queryset.annotate(video_count=Count("videos"))
+        return queryset
 
 
 class VideoSourceInline(admin.TabularInline):
@@ -64,9 +81,18 @@ class VideoSourceInline(admin.TabularInline):
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ("title", "platform", "channel", "poster", "published")
+    list_display = ("title", "source_count", "publisher", "channel", "poster", "published")
     list_filter = ("channel", )
     inlines = (VideoSourceInline, )
+    ordering = ('-published',)
+
+    def source_count(self, obj):
+        return obj.source_count
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        queryset = queryset.annotate(source_count=Count("sources"))
+        return queryset
 
 
 @admin.register(VideoSource)

@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from drf_recaptcha.fields import ReCaptchaV2Field
 
-from rest.models import Platform, Channel, VideoSource, Video
+from rest.models import Publisher, Channel, VideoSource, Video
 
 User = get_user_model()
 
@@ -63,9 +63,9 @@ class UserConfirmSerializer(serializers.Serializer):
         return user
 
 
-class PlatformSerializer(serializers.ModelSerializer):
+class PublisherSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Platform
+        model = Publisher
         fields = ('uid', 'name', 'url', 'channels')
 
     uid = serializers.CharField(read_only=True)
@@ -83,7 +83,7 @@ class ChannelSerializer(serializers.ModelSerializer):
     subscribers = serializers.IntegerField(source='num_subscribers')
 
     def get_platform(self, obj):
-        return Platform.hashids().encode(obj.platform_id)
+        return Publisher.hashids().encode(obj.platform_id)
 
 
 class VideoSourceSerializer(serializers.ModelSerializer):

@@ -41,7 +41,7 @@ def save_video(channel_id, json):
 
 
 @task
-def import_channel(channel_id, depth=SENTINAL, limit=SENTINAL):
+def import_channel(channel_id, url=None, depth=SENTINAL, limit=SENTINAL):
     channel = Channel.objects.get(pk=channel_id)
 
     options = channel.options.copy()
@@ -50,9 +50,11 @@ def import_channel(channel_id, depth=SENTINAL, limit=SENTINAL):
         options['depth'] = depth
     if limit is not SENTINAL:
         options['limit'] = limit
+    if url is None:
+        url = channel.url
 
     LOGGER.info('channel.name: %s', channel.name)
-    LOGGER.info('channel.url: %s', channel.url)
+    LOGGER.info('url: %s', url)
     LOGGER.info('options: %s', options)
 
     _get_variable(options, 'login', 'username', 1)
@@ -60,7 +62,7 @@ def import_channel(channel_id, depth=SENTINAL, limit=SENTINAL):
 
     videos = vidsrc.download(
         channel.name,
-        channel.url,
+        url,
         options,
     )
     for video in videos:

@@ -3,6 +3,8 @@ from datetime import datetime
 
 from django.db import models
 from django.db.transaction import atomic
+from django.contrib.postgres.fields import CITextField
+from django.contrib.sites.models import Site
 from django.utils.functional import cached_property
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import BaseUserManager
@@ -16,9 +18,6 @@ from mail_templated import send_mail
 
 
 HASHIDS_LENGTH = 12
-# NOTE: we may have to strip the : between UTC offset hours and minutes.
-#       see: https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes
-# 2022-07-22T02:45:35+00:00
 DATETIME_FMT = '%Y-%m-%dT%H:%M:%S%z'
 
 LOGGER = logging.getLogger(__name__)
@@ -158,8 +157,10 @@ class User(HashidsModelMixin, AbstractUser):
         return True
 
 
-class Platform(HashidsModelMixin, models.Model):
-    users = models.ManyToManyField(User, through='UserPlatform')
+class Publisher(HashidsModelMixin, models.Model):
+    site = models.ForeignKey(Site, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name='publishers', on_delete=models.CASCADE)
+    users = models.ManyToManyField(User, through='UserPublisher')
     name = models.CharField(max_length=64, unique=True)
     url = models.URLField(unique=True)
     options = models.JSONField()
@@ -173,8 +174,8 @@ class Platform(HashidsModelMixin, models.Model):
 
 
 class Channel(HashidsModelMixin, models.Model):
-    platform = models.ForeignKey(
-        Platform, related_name='channels', on_delete=models.CASCADE)
+    publisher = models.ForeignKey(
+        Publisher, related_name='channels', on_delete=models.CASCADE)
     users = models.ManyToManyField(
         User, through='UserChannel', related_name='channels')
     name = models.CharField(max_length=64, unique=True)
@@ -189,6 +190,10 @@ class Channel(HashidsModelMixin, models.Model):
         return self.name
 
 
+class Tag(models.Model):
+    name = CITextField(max_length=32, null=False, unique=True)
+
+
 class VideoManager(HashidsManagerMixin, models.Manager):
     @atomic
     def from_json(self, channel, json):
@@ -199,13 +204,12 @@ class VideoManager(HashidsManagerMixin, models.Manager):
         published = maybe_parse_date(json.get('pubDate'))
 
         video, created = self.get_or_create(
-            platform=channel.platform, channel=channel, title=title,
+            publisher=channel.publisher, channel=channel, title=title,
             poster=poster, defaults={
                 'published': published, 'duration': duration, 'fps': fps
             }
         )
-        if created:
-            sources = VideoSource.objects.from_json(video, json)
+        sources = VideoSource.objects.from_json(video, json)
 
         return video
 
@@ -213,15 +217,17 @@ class VideoManager(HashidsManagerMixin, models.Manager):
 class Video(HashidsModelMixin, models.Model):
     class Meta:
         unique_together = [
-            ('platform', 'channel', 'title', 'poster')
+            ('publisher', 'channel', 'title', 'poster')
         ]
 
-    platform = models.ForeignKey(
-        Platform, related_name='videos', on_delete=models.CASCADE)
+    publisher = models.ForeignKey(
+        Publisher, related_name='videos', on_delete=models.CASCADE)
     channel = models.ForeignKey(
         Channel, related_name='videos', on_delete=models.CASCADE)
+    tags = models.ForeignKey(
+        Tag, related_name='tag', on_delete=models.CASCADE)
     users = models.ManyToManyField(
-        User, through='UserVideo', related_name='videos')
+        User, through='UserPlay', related_name='videos')
     title = models.CharField(max_length=256)
     poster = models.URLField()
     duration = models.PositiveIntegerField()
@@ -257,22 +263,27 @@ class VideoSourceManager(HashidsManagerMixin, models.Manager):
             width = props['meta']['w']
             url = props['url']
 
-            VideoSource.objects.update_or_create(
-                video=video, width=width, height=height, defaults={'url': url}
-            )
+            try:
+                VideoSource.objects.update_or_create(
+                    video=video, width=width, height=height, url=url
+                )
+
+            except IntegrityError:
+                LOGGER.exception('Failed to add video url')
 
 
 class VideoSource(HashidsModelMixin, models.Model):
     class Meta:
         unique_together = [
             ('video', 'width', 'height'),
+            ('video', 'url'),
         ]
 
     video = models.ForeignKey(
         Video, related_name='sources', on_delete=models.CASCADE)
     width = models.PositiveSmallIntegerField()
     height = models.PositiveSmallIntegerField()
-    url = models.URLField(unique=True)
+    url = models.URLField()
 
     objects = VideoSourceManager()
 
@@ -284,14 +295,14 @@ class VideoSource(HashidsModelMixin, models.Model):
         return f'{self.width}x{self.height}'
 
 
-class UserPlatform(HashidsModelMixin, models.Model):
+class UserPublisher(HashidsModelMixin, models.Model):
     class Meta:
         unique_together = [
-            ('user', 'platform'),
+            ('user', 'publisher'),
         ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    platform = models.ForeignKey(Platform, on_delete=models.CASCADE)
+    publisher = models.ForeignKey(Publisher, on_delete=models.CASCADE)
     params = models.JSONField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -299,7 +310,7 @@ class UserPlatform(HashidsModelMixin, models.Model):
     objects = HashidsManager()
 
     def __str__(self):
-        return f'{self.user}: {self.platform}'
+        return f'{self.user}: {self.publisher}'
 
 
 class UserChannel(HashidsModelMixin, models.Model):
@@ -321,7 +332,7 @@ class UserChannel(HashidsModelMixin, models.Model):
         return f'{self.user}: {self.channel}'
 
 
-class UserVideo(models.Model):
+class UserPlay(models.Model):
     class Meta:
         unique_together = [
             ('user', 'video'),
@@ -331,7 +342,6 @@ class UserVideo(models.Model):
         User, related_name='played', on_delete=models.CASCADE)
     video = models.ForeignKey(
         Video, related_name='plays', on_delete=models.CASCADE)
-    played = models.DateTimeField(default=None, null=True)
     cursor = models.JSONField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -352,15 +362,5 @@ class UserLike(models.Model):
         User, related_name='liked', on_delete=models.CASCADE)
     video = models.ForeignKey(
         Video, related_name='likes', on_delete=models.CASCADE)
-
-
-class UserDislike(models.Model):
-    class Meta:
-        unique_together = [
-            ('user', 'video'),
-        ]
-
-    user = models.ForeignKey(
-        User, related_name='disliked', on_delete=models.CASCADE)
-    video = models.ForeignKey(
-        Video, related_name='dislikes', on_delete=models.CASCADE)
+    # +1 for like, -1 for dislike
+    like = models.SmallIntegerField(default=0)

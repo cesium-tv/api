@@ -92,7 +92,7 @@ def delete_channel(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('rest', '0002_channel_platform_uservideo_video_uservideo_video_and_more'),
+        ('rest', '0001_initial'),
     ]
 
     operations = [

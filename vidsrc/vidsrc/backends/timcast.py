@@ -102,7 +102,7 @@ async def _download(name, url, options):
     videos = []
 
     async def _handle(url, depth):
-        LOGGER.debug('url: %s', url)
+        url = url.split('#')[0]
         if depth is not None:
             if depth == 0:
                 raise DepthReached()
@@ -111,6 +111,7 @@ async def _download(name, url, options):
         if url in seen:
             LOGGER.debug('Skipping duplicate url')
             return
+        LOGGER.info('URL: %s', url)
         seen.add(url)
 
         async with ScraperSession() as session:

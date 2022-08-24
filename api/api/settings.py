@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
     'django_extensions',
     'django_celery_beat',
     'djcelery_email',
@@ -190,10 +191,10 @@ CELERY_AUTORELOAD = False
 CELERY_ALWAYS_EAGER = TEST
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULE = {
-    'rest.tasks.video.import_videos': {
-        'task': 'rest.tasks.video.import_videos',
-        'schedule': crontab(minute=0),
-    }
+    # 'rest.tasks.video.import_videos': {
+    #     'task': 'rest.tasks.video.import_videos',
+    #     'schedule': crontab(minute=0),
+    # }
 }
 
 
@@ -231,3 +232,5 @@ DEBUG_TOOLBAR_CONFIG = {
 
 CORS_ALLOW_ALL_ORIGINS = True
 # CORS_ALLOWED_ORIGINS = os.getenv('DJANGO_ALLOWED_CORS_ORIGINS', '').split(',')
+
+SITE_ID = 1
