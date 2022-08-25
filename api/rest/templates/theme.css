@@ -1,6 +1,7 @@
 body {
     background-color: {{ brand.bgcolor }};
 }
-.logo {
+
+#logo {
     src: url({{ brand.logo.url }});
 }

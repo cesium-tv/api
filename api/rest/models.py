@@ -2,9 +2,10 @@ import logging
 import inspect
 from datetime import datetime
 
+from django import forms
 from django.db import models
 from django.db.transaction import atomic
-from django.contrib.postgres.fields import CITextField
+from django.contrib.postgres.fields import CITextField, ArrayField
 from django.contrib.sites.models import Site
 from django.utils.functional import cached_property
 from django.contrib.auth.models import AbstractUser
@@ -86,6 +87,25 @@ class HashidsModelMixin:
         return self.hashids().encode(self.id)
 
 
+class ChoiceArrayField(ArrayField):
+    """
+    A field that allows us to store an array of choices.
+    Uses Django's Postgres ArrayField
+    and a MultipleChoiceField for its formfield.
+    """
+
+    def formfield(self, **kwargs):
+        defaults = {
+            'form_class': forms.MultipleChoiceField,
+            'choices': self.base_field.choices,
+        }
+        defaults.update(kwargs)
+        # Skip our parent's formfield implementation completely as we don't
+        # care for it.
+        # pylint:disable=bad-super-call
+        return super(ArrayField, self).formfield(**defaults)
+
+
 class ModuleAttributeField(models.CharField):
     def __init__(self, module, *args, **kwargs):
         self.module = module
@@ -148,11 +168,16 @@ class UserManager(HashidsManagerMixin, BaseUserManager):
 
 
 class User(HashidsModelMixin, AbstractUser):
-    USERNAME_FIELD = 'email'
+    class Meta:
+        unique_together = [
+            ('email', 'site', ),
+        ]
+
+    USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = []
 
-    username = models.CharField(max_length=32)
-    email = models.EmailField('email address', unique=True)
+    username = models.CharField(max_length=32, unique=True)
+    email = models.EmailField('email address', unique=False)
     is_confirmed = models.BooleanField(default=False)
     site = models.ForeignKey(
         Site, related_name='users', on_delete=models.CASCADE)
@@ -199,17 +224,33 @@ class User(HashidsModelMixin, AbstractUser):
 
 
 class Brand(HashidsModelMixin, models.Model):
+    name = models.CharField(max_length=32)
     logo = models.ImageField()
     bgcolor = ColorField(default='#000000')
+
+    def __str__(self):
+        return f'Brand {self.name}'
 
 
 class SiteOption(models.Model):
     site = models.OneToOneField(
         Site, related_name='options', on_delete=models.CASCADE)
-    title = models.CharField(max_length=64, null=True, blank=True)
+    title = models.CharField('app title', max_length=64, null=True, blank=True)
     brand = models.ForeignKey(
         Brand, null=True, blank=True, related_name='sites',
         on_delete=models.CASCADE)
+    menu = ChoiceArrayField(
+        models.CharField(max_length=32, choices=[
+            ('options', 'Options'),
+            ('subscriptions', 'Subscriptions'),
+            ('again', 'Watch again'),
+            ('latest', 'Latest'),
+            ('oldies', 'Oldies'),
+            ('home', 'Home'),
+            ('search', 'Search'),
+        ])
+    )
+    default_lang = models.CharField(max_length=2)
     auth_backend = ModuleAttributeField(
         max_length=32, null=True, blank=True, module='rest.auth.backends')
 

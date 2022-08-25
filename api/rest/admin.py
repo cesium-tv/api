@@ -60,6 +60,7 @@ class SubscriptionInline(admin.TabularInline):
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
+    list_display = ('site',) + BaseUserAdmin.list_display
     fieldsets = (
         (None, {"fields": ("site", "username", "password")}),
         (_("Personal info"), {"fields": ("first_name", "last_name", "email", "is_confirmed")}),

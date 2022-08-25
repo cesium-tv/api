@@ -56,17 +56,15 @@ def render_brand_template(template_name):
     def inner(request):
         try:
             site = Site.objects.get_current()
-            brand = site.options.brand
+            context = {
+                'site': site,
+                'options': site.options,
+                'brand': site.options.brand,
+            }
 
         except ObjectDoesNotExist:
             raise Http404()
 
-        context = {
-            'site': site,
-            'brand': brand,
-        }
-
-        print(context)
         return render(
             request, template_name, context=context, content_type=content_type
         )
