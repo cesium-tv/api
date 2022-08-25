@@ -6,7 +6,7 @@ from itertools import repeat
 from api.celery import task
 from django.conf import settings
 
-from rest.models import Platform, Channel, Video, VideoSource
+from rest.models import Publisher, Channel, Video, VideoSource
 import vidsrc
 
 
@@ -45,7 +45,7 @@ def import_channel(channel_id, url=None, depth=SENTINAL, limit=SENTINAL):
     channel = Channel.objects.get(pk=channel_id)
 
     options = channel.options.copy()
-    options.update(channel.platform.options)
+    options.update(channel.publisher.options)
     if depth is not SENTINAL:
         options['depth'] = depth
     if limit is not SENTINAL:

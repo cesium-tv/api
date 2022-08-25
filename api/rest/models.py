@@ -1,4 +1,5 @@
 import logging
+import inspect
 from datetime import datetime
 
 from django.db import models
@@ -13,7 +14,7 @@ from django.conf import settings
 
 from cache_memoize import cache_memoize
 from hashids import Hashids
-
+from colorfield.fields import ColorField
 from mail_templated import send_mail
 
 
@@ -85,6 +86,44 @@ class HashidsModelMixin:
         return self.hashids().encode(self.id)
 
 
+class ModuleAttributeField(models.CharField):
+    def __init__(self, module, *args, **kwargs):
+        self.module = module
+        kwargs['choices'] = self._get_choices()
+        super().__init__(*args, **kwargs)
+
+    def deconstruct(self):
+        name, path, args, kwargs = super().deconstruct()
+        kwargs['module'] = self.module
+        return name, path, args, kwargs
+
+    def _get_module(self):
+        prefix, _, name = self.module.rpartition('.')
+        return getattr(__import__(prefix, globals(), locals(), [name], 0), name)
+
+    def _get_choices(self):
+        module = self._get_module()
+        choices = [
+            s for s in dir(module) if not s.startswith('__')
+        ]
+        return [
+            (c, c) for c in choices if inspect.isclass(getattr(module, c))
+        ]
+
+    def _get_class(self, value):
+        module = self._get_module()
+        return getattr(module, value)
+
+    def to_python(self, value):
+        if inspect.isclass(value):
+            return value.__name__
+
+        if value is None:
+            return value
+
+        return value
+
+
 class UserManager(HashidsManagerMixin, BaseUserManager):
     def create_user(self, email, password, **kwargs):
         kwargs.setdefault('is_active', False)
@@ -115,6 +154,8 @@ class User(HashidsModelMixin, AbstractUser):
     username = models.CharField(max_length=32)
     email = models.EmailField('email address', unique=True)
     is_confirmed = models.BooleanField(default=False)
+    site = models.ForeignKey(
+        Site, related_name='users', on_delete=models.CASCADE)
 
     objects = UserManager()
 
@@ -157,10 +198,28 @@ class User(HashidsModelMixin, AbstractUser):
         return True
 
 
+class Brand(HashidsModelMixin, models.Model):
+    logo = models.ImageField()
+    bgcolor = ColorField(default='#000000')
+
+
+class SiteOption(models.Model):
+    site = models.OneToOneField(
+        Site, related_name='options', on_delete=models.CASCADE)
+    title = models.CharField(max_length=64, null=True, blank=True)
+    brand = models.ForeignKey(
+        Brand, null=True, blank=True, related_name='sites',
+        on_delete=models.CASCADE)
+    auth_backend = ModuleAttributeField(
+        max_length=32, null=True, blank=True, module='rest.auth.backends')
+
+    def __str__(self):
+        return f'{self.site.name} options'
+
+
 class Publisher(HashidsModelMixin, models.Model):
-    site = models.ForeignKey(Site, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, related_name='publishers', on_delete=models.CASCADE)
-    users = models.ManyToManyField(User, through='UserPublisher')
+    sites = models.ManyToManyField(Site)
+    users = models.ManyToManyField(User)
     name = models.CharField(max_length=64, unique=True)
     url = models.URLField(unique=True)
     options = models.JSONField()
@@ -176,11 +235,10 @@ class Publisher(HashidsModelMixin, models.Model):
 class Channel(HashidsModelMixin, models.Model):
     publisher = models.ForeignKey(
         Publisher, related_name='channels', on_delete=models.CASCADE)
-    users = models.ManyToManyField(
-        User, through='UserChannel', related_name='channels')
     name = models.CharField(max_length=64, unique=True)
     url = models.URLField()
-    options = models.JSONField()
+    cursor = models.JSONField(null=True, blank=True)
+    options = models.JSONField(null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -217,17 +275,12 @@ class VideoManager(HashidsManagerMixin, models.Manager):
 class Video(HashidsModelMixin, models.Model):
     class Meta:
         unique_together = [
-            ('publisher', 'channel', 'title', 'poster')
+            ('channel', 'title')
         ]
 
-    publisher = models.ForeignKey(
-        Publisher, related_name='videos', on_delete=models.CASCADE)
     channel = models.ForeignKey(
         Channel, related_name='videos', on_delete=models.CASCADE)
-    tags = models.ForeignKey(
-        Tag, related_name='tag', on_delete=models.CASCADE)
-    users = models.ManyToManyField(
-        User, through='UserPlay', related_name='videos')
+    tags = models.ManyToManyField(Tag, related_name='tagged')
     title = models.CharField(max_length=256)
     poster = models.URLField()
     duration = models.PositiveIntegerField()
@@ -295,34 +348,15 @@ class VideoSource(HashidsModelMixin, models.Model):
         return f'{self.width}x{self.height}'
 
 
-class UserPublisher(HashidsModelMixin, models.Model):
-    class Meta:
-        unique_together = [
-            ('user', 'publisher'),
-        ]
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    publisher = models.ForeignKey(Publisher, on_delete=models.CASCADE)
-    params = models.JSONField()
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
-
-    objects = HashidsManager()
-
-    def __str__(self):
-        return f'{self.user}: {self.publisher}'
-
-
-class UserChannel(HashidsModelMixin, models.Model):
+class Subscription(HashidsModelMixin, models.Model):
     class Meta:
         unique_together = [
             ('user', 'channel'),
         ]
     user = models.ForeignKey(
-        User, related_name='subscriptions', on_delete=models.CASCADE)
+        User, related_name='subscribed', on_delete=models.CASCADE)
     channel = models.ForeignKey(
         Channel, related_name='subscribers', on_delete=models.CASCADE)
-    cursor = models.JSONField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -342,7 +376,7 @@ class UserPlay(models.Model):
         User, related_name='played', on_delete=models.CASCADE)
     video = models.ForeignKey(
         Video, related_name='plays', on_delete=models.CASCADE)
-    cursor = models.JSONField()
+    cursor = models.JSONField(null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 

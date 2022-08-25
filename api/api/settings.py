@@ -64,6 +64,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'debug_toolbar',
     'corsheaders',
+    'colorfield',
     'rest',
 ]
 
@@ -112,9 +113,9 @@ DJANGO_DB_PASSWORD = get_from_env_or_file('DJANGO_DB_PASSWORD', 'password')
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'HOST': os.environ.get('DJANGO_DB_HOST', 'db'),
-        'NAME': os.environ.get('DJANGO_DB_NAME', 'cesium'),
-        'USER': os.environ.get('DJANGO_DB_USER', 'user'),
+        'HOST': os.getenv('DJANGO_DB_HOST', 'db'),
+        'NAME': os.getenv('DJANGO_DB_NAME', 'cesium'),
+        'USER': os.getenv('DJANGO_DB_USER', 'user'),
         'PASSWORD': DJANGO_DB_PASSWORD,
     }
 }
@@ -168,6 +169,9 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = Path(BASE_DIR).joinpath('static')
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.getenv('DJANGO_MEDIA_ROOT', '/tmp')
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field

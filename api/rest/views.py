@@ -7,12 +7,14 @@ import glob
 from urllib.parse import urlparse, urlunparse
 
 from django.conf import settings
-from django.http import HttpResponseRedirect
+from django.http import HttpResponseRedirect, Http404
 from django.core.cache import cache
+from django.contrib.sites.models import Site
 from django.dispatch import receiver
 from django.db.models.signals import post_save, post_delete
+from django.db.models import ObjectDoesNotExist
 from django.contrib.auth import get_user_model, login, logout, authenticate
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
@@ -41,6 +43,35 @@ from rest.models import (
 
 
 User = get_user_model()
+
+
+def render_brand_template(template_name):
+    if template_name.endswith('.css'):
+        content_type = 'text/css'
+    elif template_name.endswith('.js'):
+        content_type = 'text/javascript'
+    else:
+        content_type = 'text/html'
+
+    def inner(request):
+        try:
+            site = Site.objects.get_current()
+            brand = site.options.brand
+
+        except ObjectDoesNotExist:
+            raise Http404()
+
+        context = {
+            'site': site,
+            'brand': brand,
+        }
+
+        print(context)
+        return render(
+            request, template_name, context=context, content_type=content_type
+        )
+
+    return inner
 
 
 class UserViewSet(ModelViewSet):

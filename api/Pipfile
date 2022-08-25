@@ -19,9 +19,10 @@ django-celery-email = "*"
 django-mail-templated = "*"
 django-cache-memoize = "*"
 drf_recaptcha = "*"
-vidsrc = {path = "./vidsrc-0.1.0.tar.gz"}
 django-debug-toolbar = "*"
 django-cors-headers = "*"
+django-colorfield = "*"
+vidsrc = {path = "./vidsrc-0.1.0-py3-none-any.whl"}
 
 [dev-packages]
 flake8 = "*"

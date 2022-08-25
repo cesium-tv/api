@@ -1,5 +1,9 @@
 version: "3.4"
 
+volumes:
+  db-data:
+  media:
+
 services:
   api:
     image: cesium/api
@@ -14,6 +18,7 @@ services:
     volumes:
       - ./docker/api/entrypoint.sh:/entrypoint.sh:ro
       - ./api:/app
+      - media:/media
     environment:
       - DJANGO_DEBUG=true
       - DJANGO_DB_HOST=db
@@ -23,6 +28,7 @@ services:
       - DJANGO_SU_EMAIL=btimby_indy@yahoo.com
       - DJANGO_SU_PASSWORD=password
       - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,cesium.tv,192.168.1.101
+      - DJANGO_MEDIA_ROOT=/media
     env_file:
       # See .env.template for instructions.
       - .env
@@ -67,6 +73,8 @@ services:
       - POSTGRES_USER=user
       - POSTGRES_PASSWORD=password
       - POSTGRES_DB=cesium
+    volumes:
+      - db-data:/var/lib/postgresql/data
 
   redis:
     image: redis:alpine

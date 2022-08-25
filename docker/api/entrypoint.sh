@@ -14,12 +14,14 @@ if [ "${CMD}" == "api" ]; then
     fi
 
     if [ ! -z "${UWSGI_STATIC}" ] && [ -z "${DJANGO_DEBUG}" ]; then
-        ARGS="${ARGS} --static-map /=/app/static/ \
-                      --static-gzip-all"
+        ARGS="${ARGS} --static-map /=/app/static/"
     fi
+
+    chown -R 65534:65534 ${DJANGO_MEDIA_ROOT:-/tmp}
 
     uwsgi --enable-threads --http-socket=${DJANGO_HOST}:${DJANGO_PORT} \
         --uid=65534 --gid=65534 --manage-script-name \
+        --static-map /media=${DJANGO_MEDIA_ROOT:-/tmp} --static-gzip-all \
         --mount /=api.wsgi:application ${ARGS}
 
 elif [ "${CMD}" == "migrate" ]; then

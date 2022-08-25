@@ -3,7 +3,8 @@ from django.urls import path
 from rest_framework import routers
 
 from rest.views import (
-    PublisherViewSet, UserViewSet, ChannelViewSet, VideoViewSet,
+    render_brand_template, PublisherViewSet, UserViewSet, ChannelViewSet,
+    VideoViewSet,
 )
 
 
@@ -14,4 +15,6 @@ router.register(r'channels', ChannelViewSet, basename='channel')
 router.register(r'publishers', PublisherViewSet, basename='publisher')
 
 urlpatterns = [
+    path('brand/theme.css', render_brand_template('theme.css')),
+    path('brand/options.js', render_brand_template('options.js')),
 ] + router.urls

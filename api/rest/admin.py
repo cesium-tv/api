@@ -4,10 +4,42 @@ from django.contrib.auth.forms import (
     UserCreationForm as BaseUserCreationForm,
     UserChangeForm as BaseUserChangeForm
 )
+from django.contrib.sites.models import Site
+from django.contrib.sites.admin import SiteAdmin as BaseSiteAdmin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
 
-from rest.models import User, Publisher, Channel, Video, VideoSource
+from rest.models import (
+    User, Publisher, Channel, Video, VideoSource, Tag, Subscription,
+    SiteOption, Brand,
+)
+
+
+def reregister(*models, site=None):
+    from django.contrib.admin import ModelAdmin
+    from django.contrib.admin.sites import AdminSite
+    from django.contrib.admin.sites import site as default_site
+
+    def _model_admin_wrapper(admin_class):
+        if not models:
+            raise ValueError("At least one model must be passed to register.")
+
+        admin_site = site or default_site
+
+        if not isinstance(admin_site, AdminSite):
+            raise ValueError("site must subclass AdminSite")
+
+        if not issubclass(admin_class, ModelAdmin):
+            raise ValueError("Wrapped class must subclass ModelAdmin.")
+
+        for model in models:
+            if admin_site.is_registered(model):
+                admin_site.unregister(model)
+        admin_site.register(models, admin_class=admin_class)
+
+        return admin_class
+
+    return _model_admin_wrapper
 
 
 class UserCreationForm(BaseUserCreationForm):
@@ -22,10 +54,14 @@ class UserChangeForm(BaseUserChangeForm):
         fields = ('email',)
 
 
+class SubscriptionInline(admin.TabularInline):
+    model = Subscription
+
+
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     fieldsets = (
-        (None, {"fields": ("username", "password")}),
+        (None, {"fields": ("site", "username", "password")}),
         (_("Personal info"), {"fields": ("first_name", "last_name", "email", "is_confirmed")}),
         (
             _("Permissions"),
@@ -41,6 +77,16 @@ class UserAdmin(BaseUserAdmin):
         ),
         (_("Important dates"), {"fields": ("last_login", "date_joined")}),
     )
+    inlines = (SubscriptionInline, )
+
+
+class SiteOptionInline(admin.StackedInline):
+    model = SiteOption
+
+
+@reregister(Site)
+class SiteAdmin(BaseSiteAdmin):
+    inlines = (SiteOptionInline, )
 
 
 class ChannelInline(admin.TabularInline):
@@ -49,7 +95,7 @@ class ChannelInline(admin.TabularInline):
 
 @admin.register(Publisher)
 class PublisherAdmin(admin.ModelAdmin):
-    list_display = ('name', "channel_count", "url", )
+    list_display = ('name', "channel_count", )
     inlines = (ChannelInline, )
 
     def channel_count(self, obj):
@@ -63,15 +109,22 @@ class PublisherAdmin(admin.ModelAdmin):
 
 @admin.register(Channel)
 class ChannelAdmin(admin.ModelAdmin):
-    list_display = ("name", "video_count", "url")
+    list_display = ("name", "video_count", "subscriber_count", "url")
     list_filter = ('publisher', )
+    inlines = (SubscriptionInline, )
 
     def video_count(self, obj):
         return obj.video_count
 
+    def subscriber_count(self, obj):
+        return obj.subscriber_count
+
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        queryset = queryset.annotate(video_count=Count("videos"))
+        queryset = queryset.annotate(
+            video_count=Count("videos"),
+            subscriber_count=Count("subscribers")
+        )
         return queryset
 
 
@@ -81,7 +134,7 @@ class VideoSourceInline(admin.TabularInline):
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ("title", "source_count", "publisher", "channel", "poster", "published")
+    list_display = ("title", "source_count", "channel", "poster", "published")
     list_filter = ("channel", )
     inlines = (VideoSourceInline, )
     ordering = ('-published',)
@@ -99,3 +152,13 @@ class VideoAdmin(admin.ModelAdmin):
 class VideoSourceAdmin(admin.ModelAdmin):
     list_display = ("dimension", "video", "url")
     list_filter = ("video__channel", )
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(Brand)
+class BrandAdmin(admin.ModelAdmin):
+    pass
