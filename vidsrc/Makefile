@@ -1,7 +1,12 @@
+SRC=$(shell find vidsrc/ -name "*.py")
 
-build:
+
+dist/vidsrc-?.?.?-*.whl: $(SRC)
 	python3 setup.py bdist_wheel
-	cp dist/*.whl ../api/
+
+
+build: dist/vidsrc-?.?.?-*.whl
+	python3 setup.py bdist_wheel
 
 
 clean:

@@ -11,9 +11,12 @@ setup(
         'pyppeteer',
         'beautifulsoup4',
         'asgiref',
+        'requests',
     ],
     author='Ben Timby',
     author_email='btimby@gmail.com',
     url='https://github.com/btimby/cesium.tv/cesium.tv-api/vidsrc/',
-    packages=['vidsrc', 'vidsrc.backends'],
+    packages=[
+        'vidsrc', 'vidsrc.auth', 'vidsrc.crawl', 'vidsrc.models',
+    ],
 )

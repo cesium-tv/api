@@ -3,14 +3,12 @@ VIDSRC_SRC = ${shell find vidsrc/vidsrc}
 DOCKER_COMPOSE = docker-compose -p cesium.tv
 
 
-api/vidsrc-*.tar.gz: $(VIDSRC_SRC)
-	$(MAKE) -C vidsrc
-	cp vidsrc/dist/vidsrc-*.tar.gz api/
-	cd api && pipenv lock
+api/vidsrc-?.?.?-*.whl: vidsrc/dist/vidsrc-?.?.?-*.whl
+	cp vidsrc/dist/vidsrc-?.?.?-*.whl api/
 
 
 .PHONY: build
-build: api/vidsrc-*.tar.gz
+build: api/vidsrc-?.?.?-*.whl
 	${DOCKER_COMPOSE} build
 
 

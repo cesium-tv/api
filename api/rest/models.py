@@ -107,40 +107,37 @@ class ChoiceArrayField(ArrayField):
 
 
 class ModuleAttributeField(models.CharField):
-    def __init__(self, module, *args, **kwargs):
-        self.module = module
+    def __init__(self, module_name, *args, **kwargs):
+        self.module_name = module_name
         kwargs['choices'] = self._get_choices()
         super().__init__(*args, **kwargs)
 
     def deconstruct(self):
         name, path, args, kwargs = super().deconstruct()
-        kwargs['module'] = self.module
+        kwargs['module_name'] = self.module_name
         return name, path, args, kwargs
 
-    def _get_module(self):
-        prefix, _, name = self.module.rpartition('.')
+    @property
+    def module(self):
+        prefix, _, name = self.module_name.rpartition('.')
         return getattr(__import__(prefix, globals(), locals(), [name], 0), name)
 
     def _get_choices(self):
-        module = self._get_module()
         choices = [
-            s for s in dir(module) if not s.startswith('__')
+            s for s in dir(self.module) if not s.startswith('__')
         ]
         return [
-            (c, c) for c in choices if inspect.isclass(getattr(module, c))
+            (c, c) for c in choices if inspect.isclass(getattr(self.module, c))
         ]
 
-    def _get_class(self, value):
-        module = self._get_module()
-        return getattr(module, value)
+    def get_klass(self, value):
+        return getattr(self.module, value)
 
     def to_python(self, value):
         if inspect.isclass(value):
             return value.__name__
-
         if value is None:
             return value
-
         return value
 
 
@@ -248,11 +245,21 @@ class SiteOption(models.Model):
             ('oldies', 'Oldies'),
             ('home', 'Home'),
             ('search', 'Search'),
+            ('resume', 'Resume'),
         ])
     )
     default_lang = models.CharField(max_length=2)
-    auth_backend = ModuleAttributeField(
-        max_length=32, null=True, blank=True, module='rest.auth.backends')
+    auth = ModuleAttributeField(
+        'vidsrc.auth', max_length=32, null=True, blank=True)
+
+    @property
+    def auth_klass(self):
+        return self._meta.get_field('auth').get_klass(self.auth)
+
+    @property
+    def auth_method(self):
+        if self.auth_klass:
+            return self.auth_klass.method
 
     def __str__(self):
         return f'{self.site.name} options'
@@ -278,6 +285,7 @@ class Channel(HashidsModelMixin, models.Model):
         Publisher, related_name='channels', on_delete=models.CASCADE)
     name = models.CharField(max_length=64, unique=True)
     url = models.URLField()
+    crawler = ModuleAttributeField('vidsrc.crawl', max_length=32)
     cursor = models.JSONField(null=True, blank=True)
     options = models.JSONField(null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -287,6 +295,13 @@ class Channel(HashidsModelMixin, models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def crawl_klass(self):
+        return self._meta.get_field('crawler').get_klass(self.crawler)
+
+    def update(self, **kwargs):
+        self.model.filter(id=self.id).update(**kwargs)
 
 
 class Tag(models.Model):
@@ -334,6 +349,12 @@ class Video(HashidsModelMixin, models.Model):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        for src in self.sources:
+            src.video_id = self.id
+            src.save()
 
     @cached_property
     def num_plays(self):

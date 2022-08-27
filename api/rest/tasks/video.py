@@ -29,18 +29,6 @@ def _get_variable(d, *keys):
 
 
 @task
-def save_video(channel_id, json):
-    channel = Channel.objects.get(pk=channel_id)
-
-    try:
-        video = Video.objects.from_json(channel, json)
-        LOGGER.info('Imported video id: %i', video.id)
-
-    except:
-        LOGGER.exception('Import failed')
-
-
-@task
 def import_channel(channel_id, url=None, depth=SENTINAL, limit=SENTINAL):
     channel = Channel.objects.get(pk=channel_id)
 
@@ -57,16 +45,20 @@ def import_channel(channel_id, url=None, depth=SENTINAL, limit=SENTINAL):
     LOGGER.info('url: %s', url)
     LOGGER.info('options: %s', options)
 
-    _get_variable(options, 'login', 'username', 1)
-    _get_variable(options, 'login', 'password', 1)
+    _get_variable(options, 'credentials', 'username', 1)
+    _get_variable(options, 'credentials', 'password', 1)
 
-    videos = vidsrc.download(
-        channel.name,
+    videos = channel.crawl_klass(url).crawl(
         url,
         options,
+        state=channel.cursor,
+        VideoModel=Video,
+        VideoSourceModel=VideoSource,
     )
-    for video in videos:
-        save_video.delay(channel_id, video)
+
+    for video, state in videos:
+        video.save()
+        channel.update(cursor=state)
 
 
 @task

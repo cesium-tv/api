@@ -9,6 +9,9 @@ from pyppeteer.errors import PyppeteerError
 from aiohttp_scraper import ScraperSession
 from bs4 import BeautifulSoup
 
+from vidsrc.auth.timcast import TimcastAuth
+from vidsrc.models import Video, VideoSource
+
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.addHandler(logging.NullHandler())
@@ -35,69 +38,10 @@ def _no_images(request):
         request.continue_()
 
 
-async def _login(options, headless=True, timeout=2000):
-    url = options['url']
-    u_field, u_value = options['username']
-    p_field, p_value = options['password']
-    submit = options['submit']
-
-    browser = await pyppeteer.launch(
-        headless=headless,
-        args=[
-            '--start-maximized',
-            '--no-sandbox',
-            '--disable-setuid-sandbox'
-        ],
-        ignoreHTTPSError=True,
-        handleSIGINT=False,
-        handleSIGTERM=False,
-        handleSIGHUP=False
-    )
-
-    page = await browser.newPage()
-
-    try:
-        await page.setViewport({ 'width': 1366, 'height': 768 })
-
-        LOGGER.debug('opening url: %s', url)
-        await page.goto(url, timeout=timeout, waitFor='networkidle2')
-
-        LOGGER.debug('typing')
-        await page.type(u_field, u_value)
-        await page.type(p_field, p_value)
-
-        LOGGER.debug('clicking submit')
-        await page.click(submit)
-
-        cookieStr = []
-        for cookie in await page.cookies():
-            cookieStr.append(f"{cookie['name']}={cookie['value']}")
-        return '; '.join(cookieStr)
-
-    finally:
-        await page.close()
-        await browser.close()
-
-
-async def login(options, headless=True, retry=3):
-    for i in range(1, 1 + retry):
-        try:
-            LOGGER.debug('Login attempt %i', i + 1)
-            return await _login(options['login'], headless=headless, timeout=2000 * i)
-
-        except (PyppeteerError, asyncio.TimeoutError):
-            if i == retry:
-                raise
-
-            LOGGER.exception('Login failed, retrying')
-            await asyncio.sleep(3 ** i)
-
-
-async def _download(name, url, options):
-    cookies = await login(options)
+async def _download(url, auth, options):
     whitelist = options.get('whitelist', [])
     limit = options.get('limit')
-    
+
     seen = set()
     videos = []
 
@@ -115,7 +59,7 @@ async def _download(name, url, options):
         seen.add(url)
 
         async with ScraperSession() as session:
-            r = await session.get_html(url, headers={'cookie': cookies})
+            r = await session.get_html(url, **auth)
             LOGGER.debug('Got %i bytes', len(r))
 
         soup = BeautifulSoup(r, 'html.parser')
@@ -134,7 +78,7 @@ async def _download(name, url, options):
             srcSeen.add(src)
 
             async with ScraperSession() as session:
-                r = await session.get_html(src, headers={'referer': url})
+                r = await session.get_html(src, **auth)
                 LOGGER.debug('Received %i bytes', len(r))
 
             m = JSON_EXTRACT.search(r)
@@ -184,20 +128,46 @@ async def _download(name, url, options):
         LOGGER.info(e.args[0])
 
 
-def download(name, url, options):
-    # NOTE: This code converts from async generator to sync generator.
-    loop = asyncio.get_event_loop()
-    ait = _download(name, url, options).__aiter__()
+class TimcastCrawler:
+    def __init__(self, url, options, state=None,
+                 VideoModel=Video, VideoSourceModel=VideoSource):
+        self.url = url
+        self.options = options
+        self.seen = set()
+        if state is not None:
+            self.state = state
+        self.VideoModel = VideoModel
+        self.VideoSourceModel = VideoSourceModel
 
-    async def get_next():
-        try:
-            obj = await ait.__anext__()
-            return False, obj
-        except StopAsyncIteration:
-            return True, None
+    @property
+    def state(self):
+        return { seen: list(self.seen) }
 
-    while True:
-        done, obj = loop.run_until_complete(get_next())
-        if done:
-            break
-        yield obj
+    @state.setter
+    def state(self, value):
+        if isinstance(value, (set, list)):
+            self.seen = set(value)
+        else:
+            self.seen = value['seen']
+
+    def crawl(self, url):
+        auth = TimcastAuth(self.url).login(options.credentials)
+
+        # NOTE: This code converts from async generator to sync generator.
+        loop = asyncio.get_event_loop()
+        ait = _download(url, auth, options).__aiter__()
+
+        async def get_next():
+            try:
+                obj = await ait.__anext__()
+                return False, obj
+
+            except StopAsyncIteration:
+                return True, None
+
+        while True:
+            done, obj = loop.run_until_complete(get_next())
+            if done:
+                break
+
+            yield obj, self.state

@@ -6,6 +6,11 @@ import django.db.models.deletion
 import django.utils.timezone
 import rest.models
 
+PUBLISHERS = [
+    'pk': 1,
+    'name': 'Timcast',
+    'url': 'https://timcast.com/',
+]
 
 CHANNELS = [
     {
@@ -13,6 +18,7 @@ CHANNELS = [
         'publisher_id': 1,
         'name': 'IRL',
         'url': 'https://timcast.com/members-area/section/timcast-irl/',
+        'importer': 'TimcastCrawler',
         'options': {
             'depth': None,
             'limit': None,
@@ -20,6 +26,10 @@ CHANNELS = [
                 r'^https://timcast.com/members-area/section/timcast-irl/',
                 r'^https://timcast.com/members-area/.*member-podcast',
             ],
+            'credentials': {
+                'username': 'env[TIMCAST_USERNAME]',
+                'password': 'env[TIMCAST_PASSWORD]',
+            },
         },
     },
     {
@@ -27,6 +37,7 @@ CHANNELS = [
         'publisher_id': 1,
         'name': 'Green Room',
         'url': 'https://timcast.com/members-area/section/green-room/',
+        'importer': 'TimcastCrawler',
         'options': {
             'depth': None,
             'limit': None,
@@ -34,6 +45,10 @@ CHANNELS = [
                 r'^https://timcast.com/members-area/section/green-room/',
                 r'^https://timcast.com/members-area/.*green-room',
             ],
+            'credentials': {
+                'username': 'env[TIMCAST_USERNAME]',
+                'password': 'env[TIMCAST_PASSWORD]',
+            },
         },
     },
     {
@@ -41,6 +56,7 @@ CHANNELS = [
         'publisher_id': 1,
         'name': 'Tales From the Inverted World',
         'url': 'https://timcast.com/members-area/section/tales-from-the-inverted-world/',
+        'importer': 'TimcastCrawler',
         'options': {
             'depth': None,
             'limit': None,
@@ -48,7 +64,35 @@ CHANNELS = [
                 r'^https://timcast.com/members-area/section/tales-from-the-inverted-world/',
                 r'^https://timcast.com/members-area/',
             ],
+            'credentials': {
+                'username': 'env[TIMCAST_USERNAME]',
+                'password': 'env[TIMCAST_PASSWORD]',
+            },
         },
+    },
+    {
+        'pk': 4,
+        'publisher_id': 1,
+        'name': "Ben's Favorites",
+        'url': 'http://cesium.tv/',
+        'importer': 'PeerTubeCrawler',
+        'options': {
+            'credentials': {
+                'username': 'env[PEERTUBE_USERNAME]',
+                'password': 'env[PEERTUBE_PASSWORD]',
+            }
+        },
+    },
+]
+
+VIDEOS = [
+    {
+        'pk': 1,
+        'channel_id': 4,
+        'title': '',
+        'poster': '',
+        'duration': '',
+        'ftp': '',
     },
 ]
 
@@ -81,19 +125,7 @@ def create_publishers(apps, schema_editor):
     User = apps.get_model('rest', 'User')
     Site = apps.get_model('sites', 'Site')
     db_alias = schema_editor.connection.alias
-    publisher = Publisher.objects.using(db_alias).create(
-        pk = 1,
-        name = 'Timcast',
-        url = 'https://timcast.com/',
-        options = {
-            'login': {
-                'url': 'https://timcast.com/login/',
-                'username': ('#user_login', 'env[TIMCAST_USERNAME]'),
-                'password': ('#user_pass', 'env[TIMCAST_PASSWORD]'),
-                'submit': '#wp-submit',
-            }
-        },
-    )
+    publisher = Publisher.objects.using(db_alias).create(PUBLISHER)
     publisher.users.add(User.objects.using(db_alias).get(pk=1))
     publisher.sites.add(Site.objects.using(db_alias).get(pk=1))
 

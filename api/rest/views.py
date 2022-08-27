@@ -55,11 +55,11 @@ def render_brand_template(template_name):
 
     def inner(request):
         try:
-            site = Site.objects.get_current()
             context = {
-                'site': site,
-                'options': site.options,
-                'brand': site.options.brand,
+                'user': request.user,
+                'site': request.site,
+                'options': request.site.options,
+                'brand': request.site.options.brand,
             }
 
         except ObjectDoesNotExist:
@@ -127,7 +127,7 @@ class PublisherViewSet(ModelViewSet):
             .annotate(
                 num_channels=Count('channels'),
             ) \
-            .all()
+            .filter(sites__in=[self.request.site])
 
         return queryset
 
@@ -143,8 +143,9 @@ class ChannelViewSet(ModelViewSet):
                 num_videos=Count('videos'),
                 num_subscribers=Count('subscribers'),
             ) \
-            .all()
+            .filter(publisher__sites__in=[self.request.site])
         return queryset
+
 
 class VideoViewSet(ModelViewSet):
     permission_classes = [AllowAny]
@@ -155,17 +156,19 @@ class VideoViewSet(ModelViewSet):
         queryset = Video.objects \
             .prefetch_related('sources') \
             .order_by('-published') \
+            .filter(channel__publisher__sites__in=[self.request.site]) \
             .annotate(
                 num_plays=Count('plays'),
-                num_likes=Count(UserLike.objects.filter(video_id=OuterRef('pk'), like=1)),
-                num_dislikes=Count(UserLike.objects.filter(video_id=OuterRef('pk'), like=-1)),
-                played=Exists(UserPlay.objects.filter(video_id=OuterRef('pk'), user_id=1)),
-                liked=Exists(UserLike.objects.filter(video_id=OuterRef('pk'), user_id=1, like=1)),
-                disliked=Exists(UserDislike.objects.filter(video_id=OuterRef('pk'), user_id=1, like=-1)),
-            ) \
-            .all()
+            #    num_likes=Count(UserLike.objects.filter(video_id=OuterRef('pk'), like=1)),
+            #    num_dislikes=Count(UserLike.objects.filter(video_id=OuterRef('pk'), like=-1)),
+            #    #played=Exists(UserPlay.objects.filter(video_id=OuterRef('pk'), user_id=1)),
+            #    #liked=Exists(UserLike.objects.filter(video_id=OuterRef('pk'), user_id=1, like=1)),
+            #    #disliked=Exists(UserLike.objects.filter(video_id=OuterRef('pk'), user_id=1, like=-1)),
+            )
+
         channel_id = self.request.query_params.get('channel')
         if channel_id is not None:
             channel = get_object_or_404(Channel, uid=channel_id)
             queryset = queryset.filter(channel=channel)
+
         return queryset
