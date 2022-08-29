@@ -89,7 +89,7 @@ class ChannelSerializer(serializers.ModelSerializer):
 class VideoSourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = VideoSource
-        fields = ('uid', 'dimension', 'url')
+        fields = ('uid', 'width', 'heigth', 'url', 'fps', 'size')
 
     uid = serializers.CharField(read_only=True)
 
@@ -98,19 +98,17 @@ class VideoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
         fields = (
-            'uid', 'channel', 'title', 'poster', 'duration', 'fps', 'published',
-            'sources', 'plays', 'likes', 'dislikes', 'liked', 'disliked', 'played',
+            'uid', 'channel', 'title', 'poster', 'duration', 'published',
+            'sources', 'total_plays', 'total_likes', 'total_dislikes', 'liked',
+            'disliked', 'played',
         )
 
     uid = serializers.CharField(read_only=True)
     channel = serializers.SerializerMethodField()
     sources = serializers.SerializerMethodField()
-    plays = serializers.IntegerField(source='num_plays')
-    likes = serializers.IntegerField(source='num_likes')
-    dislikes = serializers.IntegerField(source='num_dislikes')
-    played = serializers.BooleanField()
-    liked = serializers.BooleanField()
-    disliked = serializers.BooleanField()
+    played = serializers.SerializerMethodField()
+    liked = serializers.SerializerMethodField()
+    disliked = serializers.SerializerMethodField()
 
     def get_sources(self, obj):
         sources = {}
@@ -124,3 +122,12 @@ class VideoSerializer(serializers.ModelSerializer):
 
     def get_channel(self, obj):
         return Channel.hashids().encode(obj.channel_id)
+
+    def get_played(self, obj):
+        return getattr(obj, 'played', False)
+
+    def get_liked(self, obj):
+        return getattr(obj, 'liked', False)
+
+    def get_disliked(self, obj):
+        return getattr(obj, 'disliked', False)

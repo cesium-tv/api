@@ -1,6 +1,11 @@
+import logging
 from urllib.parse import urljoin
 
 import requests
+
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.addHandler(logging.NullHandler())
 
 
 class PeerTubeAuth:
@@ -8,9 +13,10 @@ class PeerTubeAuth:
         self.url = url
 
     def login(self, credentials):
-        r = requests.get(urljoin(self.url, '/oauth-clients/local/'))
+        LOGGER.debug(credentials)
+        r = requests.get(urljoin(self.url, '/api/v1/oauth-clients/local/'))
         params = r.json()
-        r = requests.post(urljoin(self.url, '/users/token/'), data={
+        r = requests.post(urljoin(self.url, '/api/v1/users/token/'), data={
             'client_id': params['client_id'],
             'client_secret': params['client_secret'],
             'grant_type': 'password',

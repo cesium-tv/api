@@ -986,7 +986,7 @@
         },
         "vidsrc": {
             "hashes": [
-                "sha256:01c8d5d8822d98c794bd29ebfb6d7533be1af9a2ebeff7471e644b89dceb6155"
+                "sha256:af8c7b47b893eb3896c04efbff688f725d0934dda9ae3a56f23410b9d5f8128b"
             ],
             "path": "./vidsrc-0.1.0-py3-none-any.whl",
             "version": "==0.1.0"

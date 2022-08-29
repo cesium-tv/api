@@ -5,6 +5,7 @@ from datetime import datetime
 from django import forms
 from django.db import models
 from django.db.transaction import atomic
+from django.core.validators import FileExtensionValidator
 from django.contrib.postgres.fields import CITextField, ArrayField
 from django.contrib.sites.models import Site
 from django.utils.functional import cached_property
@@ -222,8 +223,13 @@ class User(HashidsModelMixin, AbstractUser):
 
 class Brand(HashidsModelMixin, models.Model):
     name = models.CharField(max_length=32)
+    favicon = models.ImageField(
+        validators=[FileExtensionValidator(allowed_extensions=['ico'])],
+        null=True)
     logo = models.ImageField()
     bgcolor = ColorField(default='#000000')
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f'Brand {self.name}'
@@ -251,15 +257,16 @@ class SiteOption(models.Model):
     default_lang = models.CharField(max_length=2)
     auth = ModuleAttributeField(
         'vidsrc.auth', max_length=32, null=True, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     @property
-    def auth_klass(self):
+    def AuthClass(self):
         return self._meta.get_field('auth').get_klass(self.auth)
 
     @property
     def auth_method(self):
-        if self.auth_klass:
-            return self.auth_klass.method
+        return getattr(self.AuthClass, 'method', None)
 
     def __str__(self):
         return f'{self.site.name} options'
@@ -269,24 +276,7 @@ class Publisher(HashidsModelMixin, models.Model):
     sites = models.ManyToManyField(Site)
     users = models.ManyToManyField(User)
     name = models.CharField(max_length=64, unique=True)
-    url = models.URLField(unique=True)
-    options = models.JSONField()
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
-
-    objects = HashidsManager()
-
-    def __str__(self):
-        return self.name
-
-
-class Channel(HashidsModelMixin, models.Model):
-    publisher = models.ForeignKey(
-        Publisher, related_name='channels', on_delete=models.CASCADE)
-    name = models.CharField(max_length=64, unique=True)
     url = models.URLField()
-    crawler = ModuleAttributeField('vidsrc.crawl', max_length=32)
-    cursor = models.JSONField(null=True, blank=True)
     options = models.JSONField(null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -296,95 +286,71 @@ class Channel(HashidsModelMixin, models.Model):
     def __str__(self):
         return self.name
 
+
+class Platform(HashidsModelMixin, models.Model):
+    name = models.CharField(max_length=64)
+    crawler = ModuleAttributeField('vidsrc.crawl', max_length=32)
+
     @property
-    def crawl_klass(self):
+    def CrawlerClass(self):
         return self._meta.get_field('crawler').get_klass(self.crawler)
 
+
+class Channel(HashidsModelMixin, models.Model):
+    class Meta:
+        unique_together = [
+            ('publisher', 'name'),
+        ]
+
+    publisher = models.ForeignKey(
+        Publisher, related_name='channels', on_delete=models.CASCADE)
+    platform = models.ForeignKey(
+        Platform, related_name='channels', on_delete=models.CASCADE)
+    name = models.CharField(max_length=64)
+    url = models.URLField()
+    extern_id = models.CharField(max_length=128, unique=True)
+    extern_cursor = models.JSONField(null=True, blank=True)
+    options = models.JSONField(null=True, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    objects = HashidsManager()
+
+    def __str__(self):
+        return self.name
+
     def update(self, **kwargs):
-        self.model.filter(id=self.id).update(**kwargs)
+        Channel.objects.filter(id=self.id).update(**kwargs)
 
 
 class Tag(models.Model):
     name = CITextField(max_length=32, null=False, unique=True)
 
 
-class VideoManager(HashidsManagerMixin, models.Manager):
-    @atomic
-    def from_json(self, channel, json):
-        title = json['title'].title()
-        poster = json['i']
-        duration = json.get('duration')
-        fps = json.get('fps')
-        published = maybe_parse_date(json.get('pubDate'))
-
-        video, created = self.get_or_create(
-            publisher=channel.publisher, channel=channel, title=title,
-            poster=poster, defaults={
-                'published': published, 'duration': duration, 'fps': fps
-            }
-        )
-        sources = VideoSource.objects.from_json(video, json)
-
-        return video
-
-
 class Video(HashidsModelMixin, models.Model):
-    class Meta:
-        unique_together = [
-            ('channel', 'title')
-        ]
-
     channel = models.ForeignKey(
         Channel, related_name='videos', on_delete=models.CASCADE)
     tags = models.ManyToManyField(Tag, related_name='tagged')
+    extern_id = models.CharField(max_length=128, unique=True)
     title = models.CharField(max_length=256)
     poster = models.URLField()
     duration = models.PositiveIntegerField()
-    fps = models.PositiveSmallIntegerField()
+    original = models.JSONField(null=True, blank=True)
+    total_plays = models.PositiveIntegerField(default=0)
+    total_likes = models.PositiveIntegerField(default=0)
+    total_dislikes = models.PositiveIntegerField(default=0)
     published = models.DateTimeField(default=timezone.now)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-
-    objects = VideoManager()
 
     def __str__(self):
         return self.title
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        for src in self.sources:
+        for src in self.sources.all():
             src.video_id = self.id
             src.save()
-
-    @cached_property
-    def num_plays(self):
-        return self.plays.count()
-
-    @cached_property
-    def num_likes(self):
-        return self.likes.count()
-
-    @cached_property
-    def num_dislikes(self):
-        return self.dislikes.count()
-
-
-class VideoSourceManager(HashidsManagerMixin, models.Manager):
-    def from_json(self, video, json):
-        dims = json['ua']['mp4']
-
-        for dim, props in dims.items():
-            height = dim
-            width = props['meta']['w']
-            url = props['url']
-
-            try:
-                VideoSource.objects.update_or_create(
-                    video=video, width=width, height=height, url=url
-                )
-
-            except IntegrityError:
-                LOGGER.exception('Failed to add video url')
 
 
 class VideoSource(HashidsModelMixin, models.Model):
@@ -397,17 +363,21 @@ class VideoSource(HashidsModelMixin, models.Model):
     video = models.ForeignKey(
         Video, related_name='sources', on_delete=models.CASCADE)
     width = models.PositiveSmallIntegerField()
-    height = models.PositiveSmallIntegerField()
+    height = models.PositiveSmallIntegerField(null=True, blank=True)
+    fps = models.PositiveSmallIntegerField()
+    size = models.PositiveBigIntegerField(null=True, blank=True)
     url = models.URLField()
-
-    objects = VideoSourceManager()
+    original = models.JSONField(null=True, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.dimension
 
     @property
     def dimension(self):
-        return f'{self.width}x{self.height}'
+        height = f'x{self.height}' if self.height else ''
+        return f'{self.width}{height}'
 
 
 class Subscription(HashidsModelMixin, models.Model):
@@ -460,3 +430,5 @@ class UserLike(models.Model):
         Video, related_name='likes', on_delete=models.CASCADE)
     # +1 for like, -1 for dislike
     like = models.SmallIntegerField(default=0)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)

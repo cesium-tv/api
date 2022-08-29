@@ -15,6 +15,8 @@ services:
       - redis
     ports:
       - 8000:8000
+    extra_hosts:
+      - cesium.tv:192.168.1.239
     volumes:
       - ./docker/api/entrypoint.sh:/entrypoint.sh:ro
       - ./api:/app
@@ -56,9 +58,12 @@ services:
     depends_on:
       - db
       - redis
+    extra_hosts:
+      - cesium.tv:192.168.1.239
     volumes:
       - ./docker/api/entrypoint.sh:/entrypoint.sh:ro
       - ./api:/app:ro
+      - ./vidsrc/vidsrc:/usr/local/lib/python3.10/site-packages/vidsrc:ro
     environment:
       - DJANGO_DB_HOST=db
       - DJANGO_DB_USER=user

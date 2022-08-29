@@ -192,7 +192,7 @@ CELERY_BEAT_SCHEDULER = os.environ.get(
     'CELERY_BEAT_SCHEDULER',
     'django_celery_beat.schedulers:DatabaseScheduler')
 CELERY_COMMAND = ('celery', '-A', 'api', 'worker', '-l', 'info')
-CELERY_AUTORELOAD = False
+CELERY_AUTORELOAD = DEBUG
 CELERY_ALWAYS_EAGER = TEST
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULE = {

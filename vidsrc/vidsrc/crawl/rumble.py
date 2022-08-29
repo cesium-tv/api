@@ -2,7 +2,7 @@ from vidsrc.auth.rumble import RumbleAuth
 from vidsrc.models import Video, VideoSource
 
 
-class TimcastCrawler:
+class RumbleCrawler:
     def __init__(self, url, options, state=None,
                  VideoModel=Video, VideoSourceModel=VideoSource):
         self.url = url

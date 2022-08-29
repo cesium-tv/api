@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 
 
 @dataclass
@@ -13,9 +14,11 @@ class VideoSource:
 
 @dataclass
 class Video:
-    tags: list[str]
+    extern_id: str
     title: str
     poster: str
     duration: int
-    sources: list[VideoSource]
     original: dict
+    published: datetime
+    tags: list[str]
+    sources: list[VideoSource]

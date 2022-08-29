@@ -14,7 +14,7 @@ from django.dispatch import receiver
 from django.db.models.signals import post_save, post_delete
 from django.db.models import ObjectDoesNotExist
 from django.contrib.auth import get_user_model, login, logout, authenticate
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, render, redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
@@ -38,11 +38,21 @@ from rest.serializers import (
     UserSerializer, PublisherSerializer, ChannelSerializer, VideoSerializer,
 )
 from rest.models import (
-    Publisher, Video, Channel, UserPlay, UserLike,
+    Publisher, Video, Channel, UserPlay, UserLike, SiteOption, Brand,
 )
 
 
 User = get_user_model()
+
+
+def redirect_favicon(request):
+    try:
+        brand = SiteOption.objects.get(site=request.site).brand
+
+    except ObjectDoesNotExist:
+        raise Http404()
+
+    return redirect(brand.favicon.url)
 
 
 def render_brand_template(template_name):
@@ -50,16 +60,19 @@ def render_brand_template(template_name):
         content_type = 'text/css'
     elif template_name.endswith('.js'):
         content_type = 'text/javascript'
+    elif template_name.endswith('.json'):
+        content_type = 'application/json'
     else:
         content_type = 'text/html'
 
     def inner(request):
         try:
+            options = SiteOption.objects.get(site=request.site)
             context = {
                 'user': request.user,
                 'site': request.site,
-                'options': request.site.options,
-                'brand': request.site.options.brand,
+                'options': options,
+                'brand': options.brand,
             }
 
         except ObjectDoesNotExist:
@@ -79,7 +92,10 @@ class UserViewSet(ModelViewSet):
     lookup_field = 'uid'
 
     def get_queryset(self):
-        return self.queryset.filter(pk=self.request.user.id)
+        queryset = self.queryset \
+            .filter(pk=self.request.user.id) \
+            .filter(publisher__sites__in=[self.request.site])
+        return queryset
 
     def perform_create(self, serializer):
         user = serializer.save()
@@ -128,7 +144,6 @@ class PublisherViewSet(ModelViewSet):
                 num_channels=Count('channels'),
             ) \
             .filter(sites__in=[self.request.site])
-
         return queryset
 
 
@@ -156,19 +171,36 @@ class VideoViewSet(ModelViewSet):
         queryset = Video.objects \
             .prefetch_related('sources') \
             .order_by('-published') \
-            .filter(channel__publisher__sites__in=[self.request.site]) \
-            .annotate(
-                num_plays=Count('plays'),
-            #    num_likes=Count(UserLike.objects.filter(video_id=OuterRef('pk'), like=1)),
-            #    num_dislikes=Count(UserLike.objects.filter(video_id=OuterRef('pk'), like=-1)),
-            #    #played=Exists(UserPlay.objects.filter(video_id=OuterRef('pk'), user_id=1)),
-            #    #liked=Exists(UserLike.objects.filter(video_id=OuterRef('pk'), user_id=1, like=1)),
-            #    #disliked=Exists(UserLike.objects.filter(video_id=OuterRef('pk'), user_id=1, like=-1)),
+            .filter(channel__publisher__sites__in=[self.request.site])
+
+        user_id = getattr(self.request.user, 'id', None)
+        if user_id:
+            queryset = queryset.annotate(
+                played=Exists(
+                    UserPlay.objects.filter(
+                        video_id=OuterRef('pk'),
+                        user_id=user_id)
+                ),
+                liked=Exists(
+                    UserLike.objects.filter(
+                        video_id=OuterRef('pk'),
+                        user_id=user_id,
+                        like=1)
+                ),
+                disliked=Exists(
+                    UserLike.objects.filter(
+                        video_id=OuterRef('pk'),
+                        user_id=user_id,
+                        like=-1)
+                ),
             )
 
-        channel_id = self.request.query_params.get('channel')
-        if channel_id is not None:
-            channel = get_object_or_404(Channel, uid=channel_id)
+        channel_uid = self.request.query_params.get('channel')
+        if channel_uid is not None:
+            channel = get_object_or_404(Channel,
+                publisher__sites__in=[self.request.site],
+                uid=channel_uid,
+            )
             queryset = queryset.filter(channel=channel)
 
         return queryset

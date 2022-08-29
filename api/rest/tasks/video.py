@@ -6,7 +6,7 @@ from itertools import repeat
 from api.celery import task
 from django.conf import settings
 
-from rest.models import Publisher, Channel, Video, VideoSource
+from rest.models import Publisher, Channel, Video, Tag, VideoSource
 import vidsrc
 
 
@@ -29,36 +29,66 @@ def _get_variable(d, *keys):
 
 
 @task
-def import_channel(channel_id, url=None, depth=SENTINAL, limit=SENTINAL):
-    channel = Channel.objects.get(pk=channel_id)
+def import_channel(channel_id, depth=SENTINAL, limit=SENTINAL):
+    options, channel = {}, Channel.objects.get(pk=channel_id)
 
-    options = channel.options.copy()
-    options.update(channel.publisher.options)
+    if channel.options:
+        options.update(channel.options)
+    if channel.publisher.options:
+        options.update(channel.publisher.options)
     if depth is not SENTINAL:
         options['depth'] = depth
     if limit is not SENTINAL:
         options['limit'] = limit
-    if url is None:
-        url = channel.url
 
-    LOGGER.info('channel.name: %s', channel.name)
-    LOGGER.info('url: %s', url)
+    LOGGER.info('Importing channel')
+    LOGGER.info('name: %s', channel.name)
+    LOGGER.info('extern_id: %s', channel.extern_id)
+    LOGGER.info('extern_cursor: %s', channel.extern_cursor)
+    LOGGER.info('url: %s', channel.url)
     LOGGER.info('options: %s', options)
 
-    _get_variable(options, 'credentials', 'username', 1)
-    _get_variable(options, 'credentials', 'password', 1)
+    _get_variable(options, 'credentials', 'username')
+    _get_variable(options, 'credentials', 'password')
 
-    videos = channel.crawl_klass(url).crawl(
-        url,
+    objects = channel.platform.CrawlerClass(
+        channel,
         options,
-        state=channel.cursor,
-        VideoModel=Video,
-        VideoSourceModel=VideoSource,
-    )
+    ).crawl(channel.extern_cursor)
 
-    for video, state in videos:
-        video.save()
-        channel.update(cursor=state)
+    for obj, state in objects:
+        LOGGER.info('Saving video %s in channel %s', obj.extern_id, channel.name)
+        video, created = Video.objects.get_or_create(
+            channel=channel,
+            extern_id=obj.extern_id,
+            defaults={
+                'title': obj.title,
+                'poster': obj.poster,
+                'duration': obj.duration,
+                'original': obj.original,
+                'published': obj.published,
+            }
+        )
+        LOGGER.info('Adding tags %s to video', obj.tags)
+        video.tags.set([
+            Tag.objects.get_or_create(name=t)[0] for t in obj.tags
+        ])
+        for source in obj.sources:
+            LOGGER.info('Adding source %s to video', source.url)
+            VideoSource.objects.get_or_create(
+                video=video,
+                url=source.url,
+                width=source.width,
+                defaults={
+                    'height': source.height,
+                    'fps': source.fps,
+                    'size': source.size,
+                    'original': source.original,
+                }
+            )
+
+        LOGGER.info('Updating channel state to %s', state)
+        channel.update(extern_cursor=state)
 
 
 @task

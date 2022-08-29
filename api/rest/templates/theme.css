@@ -3,5 +3,5 @@ body {
 }
 
 #logo {
-    src: url({{ brand.logo.url }});
+    content: url({{ brand.logo.url }});
 }
