@@ -3,7 +3,10 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from drf_recaptcha.fields import ReCaptchaV2Field
 
-from rest.models import Publisher, Channel, VideoSource, Video
+from rest.models import (
+    Publisher, Channel, VideoSource, Video,  OAuth2Token, OAuth2Client,
+    OAuth2Code,
+)
 
 User = get_user_model()
 
@@ -131,3 +134,25 @@ class VideoSerializer(serializers.ModelSerializer):
 
     def get_disliked(self, obj):
         return getattr(obj, 'disliked', False)
+
+
+class OAuth2ClientSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OAuth2Client
+        fields = ('user', 'client_id', 'client_name', 'website_uri', 'description', 'scope')
+
+    user = UserSerializer(fields=('uid', 'username',))
+
+
+class OAuth2TokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OAuth2Token
+        fields = ('uid', 'client', 'token_type', 'scope', 'revoked',
+                  'issued_at', 'expires_in')
+
+    uid = serializers.CharField(read_only=True)
+    client = OAuth2ClientSerializer()
+
+
+class OAuth2AuthzCodeSerializer(serializers.Serializer):
+    client = OAuth2ClientSerializer()

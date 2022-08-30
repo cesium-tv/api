@@ -1,6 +1,8 @@
 import logging
 import inspect
 import uuid
+import string
+import random
 from os.path import splitext
 from datetime import datetime
 
@@ -21,12 +23,41 @@ from hashids import Hashids
 from colorfield.fields import ColorField
 from mail_templated import send_mail
 
+from authlib.oauth2.rfc6749 import (
+    ClientMixin, TokenMixin, AuthorizationCodeMixin,
+)
+
 
 HASHIDS_LENGTH = 12
-DATETIME_FMT = '%Y-%m-%dT%H:%M:%S%z'
+MENU_ITEMS = [
+    ('options', 'Options'),
+    ('subscriptions', 'Subscriptions'),
+    ('again', 'Watch again'),
+    ('latest', 'Latest'),
+    ('oldies', 'Oldies'),
+    ('home', 'Home'),
+    ('search', 'Search'),
+    ('resume', 'Resume'),
+]
+GRANT_TYPES = [
+    ('authorization_code', 'authorization_code'),
+    ('refresh_token', 'refresh_token'),
+    ('password', 'password'),
+    ('device_code', 'device_code'),
+]
+TOKEN_AUTH_METHODS = [
+    ('client_secret_post', 'client_secret_post'),
+    ('client_secret_basic', 'client_secret_basic'),
+]
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.addHandler(logging.NullHandler())
+
+
+def grant_types_default():
+    return [
+        gt[0] for gt in GRANT_TYPES
+    ]
 
 
 def get_file_name(instance, filename):
@@ -34,16 +65,12 @@ def get_file_name(instance, filename):
     return f'{uuid.uuid4()}.{ext}'
 
 
-def maybe_parse_date(date_str):
-    if date_str is None:
-        return None
-
-    try:
-        return datetime.strptime(date_str, DATETIME_FMT)
-
-    except ValueError:
-        LOGGER.exception('Error parsing datetime')
-        return timezone.now()
+def get_random_code():
+    chars = string.ascii_lowercase + string.digits
+    selected = set()
+    while len(selected) < 8:
+        selected.add(random.choice(chars))
+    return ''.join(selected)
 
 
 class HashidsQuerySet(models.QuerySet):
@@ -253,16 +280,7 @@ class SiteOption(models.Model):
         Brand, null=True, blank=True, related_name='sites',
         on_delete=models.CASCADE)
     menu = ChoiceArrayField(
-        models.CharField(max_length=32, choices=[
-            ('options', 'Options'),
-            ('subscriptions', 'Subscriptions'),
-            ('again', 'Watch again'),
-            ('latest', 'Latest'),
-            ('oldies', 'Oldies'),
-            ('home', 'Home'),
-            ('search', 'Search'),
-            ('resume', 'Resume'),
-        ])
+        models.CharField(max_length=32, choices=MENU_ITEMS)
     )
     default_lang = models.CharField(max_length=2)
     auth = ModuleAttributeField(
@@ -442,3 +460,130 @@ class UserLike(models.Model):
     like = models.SmallIntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+
+
+# https://docs.authlib.org/en/latest/django/2/authorization-server.html
+class OAuth2Client(HashidsModelMixin, models.Model, ClientMixin):
+    class Meta:
+        verbose_name = "OAuth2 Client"
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    client_id = models.UUIDField(unique=True, default=uuid.uuid4, blank=True)
+    client_secret = models.UUIDField(null=False, default=uuid.uuid4, blank=True)
+    client_name = models.CharField(max_length=120)
+    website_uri = models.URLField(max_length=256, null=True)
+    description = models.TextField(null=True)
+    redirect_uris = ArrayField(models.CharField(max_length=256))
+    default_redirect_uri = models.CharField(max_length=256, null=True)
+    scope = ArrayField(models.CharField(max_length=24), null=True)
+    response_types = ArrayField(models.CharField(max_length=32), null=True)
+    grant_types = ChoiceArrayField(
+        models.CharField(max_length=32, choices=GRANT_TYPES),
+        null=False,
+        default=grant_types_default
+    )
+    token_endpoint_auth_method = models.CharField(
+        choices=TOKEN_AUTH_METHODS, max_length=120, null=False,
+        default='client_secret_post')
+
+    objects = HashidsManager()
+
+    def get_client_id(self):
+        return str(self.client_id)
+
+    def get_default_redirect_uri(self):
+        return self.default_redirect_uri
+
+    def get_allowed_scope(self, scope):
+        if not scope:
+            return []
+        return [s for s in scope if s in self.scope]
+
+    def check_redirect_uri(self, redirect_uri):
+        if redirect_uri == self.default_redirect_uri:
+            return True
+        return redirect_uri in self.redirect_uris
+
+    def has_client_secret(self):
+        return bool(self.client_secret)
+
+    def check_client_secret(self, client_secret):
+        return str(self.client_secret) == client_secret
+
+    def check_endpoint_auth_method(self, method, endpoint):
+        return endpoint != 'token' or self.token_endpoint_auth_method == method
+
+    def check_response_type(self, response_type):
+        return response_type in self.response_types
+
+    def check_grant_type(self, grant_type):
+        return grant_type in self.grant_types
+        return allowed
+
+
+class OAuth2Token(HashidsModelMixin, models.Model, TokenMixin):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    client = models.ForeignKey(
+        OAuth2Client, to_field="client_id", db_column="client", on_delete=models.CASCADE)
+    token_type = models.CharField(max_length=40)
+    access_token = models.CharField(max_length=255, unique=True, null=False)
+    refresh_token = models.CharField(max_length=255, db_index=True, null=False)
+    scope = ArrayField(models.CharField(max_length=24), null=True)
+    revoked = models.BooleanField(default=False)
+    issued_at = models.DateTimeField(null=False, default=timezone.now)
+    expires_in = models.IntegerField(null=False, default=0)
+
+    objects = HashidsManager()
+
+    def get_client_id(self):
+        return self.client.client_id
+
+    def get_scope(self):
+        return self.scope
+
+    def get_expires_in(self):
+        return self.expires_in
+
+    def get_expires_at(self):
+        return self.issued_at + timedelta(seconds=self.expires_in)
+
+
+class OAuth2Code(HashidsModelMixin, models.Model, AuthorizationCodeMixin):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    client = models.ForeignKey(
+        OAuth2Client, to_field="client_id", db_column="client", on_delete=models.CASCADE)
+    code = models.CharField(max_length=120, unique=True, null=False)
+    redirect_uri = models.TextField(null=True)
+    response_type = models.TextField(null=True)
+    scope = ArrayField(models.CharField(max_length=24), null=True)
+    auth_time = models.DateTimeField(null=False, default=timezone.now)
+    nonce = models.CharField(max_length=120, null=True)
+
+    objects = HashidsManager()
+
+    def is_expired(self):
+        return self.auth_time + timedelta(seconds=300) < timezone.now()
+
+    def get_redirect_uri(self):
+        return self.redirect_uri
+
+    def get_scope(self):
+        return self.scope
+
+    def get_auth_time(self):
+        return self.auth_time.timestamp()
+
+    def get_nonce(self):
+        return self.nonce
+
+
+class OAuth2DeviceCode(models.Model):
+    code = models.CharField(
+        max_length=8, unique=True, default=get_random_code)
+
+
+class OAuth2UserCode(models.Model):
+    user = models.ForeignKey(
+        User, related_name='oauth2_user_codes', on_delete=models.CASCADE)
+    code = models.CharField(
+        max_length=8, unique=True, default=get_random_code)

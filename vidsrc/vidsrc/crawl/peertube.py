@@ -12,10 +12,20 @@ from vidsrc.models import Video, VideoSource
 LOGGER = logging.getLogger(__name__)
 LOGGER.addHandler(logging.NullHandler())
 
-
 # '2022-07-31T01:16:56.624Z'
-def parse_date(v):
-    return datetime.strptime(v, '%Y-%m-%dT%H:%M:%S.%fZ%Z')
+DATETIME_FMT = '%Y-%m-%dT%H:%M:%S%z'
+
+
+def maybe_parse_date(date_str):
+    if date_str is None:
+        return None
+
+    try:
+        return datetime.strptime(date_str, DATETIME_FMT)
+
+    except ValueError:
+        LOGGER.exception('Error parsing datetime')
+        return datetime.utcnow()
 
 
 class PeerTubeCrawler:
@@ -77,7 +87,7 @@ class PeerTubeCrawler:
                 poster=urljoin(self.url, obj['thumbnailPath']),
                 duration=obj['duration'],
                 original=obj,
-                published=parse_date(obj['publishedAt']),
+                published=maybe_parse_date(obj['publishedAt']),
                 tags=tags,
                 sources=sources,
             )

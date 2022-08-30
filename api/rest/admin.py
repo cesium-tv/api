@@ -11,7 +11,7 @@ from django.utils.translation import gettext_lazy as _
 
 from rest.models import (
     User, Publisher, Channel, Video, VideoSource, Tag, Subscription,
-    SiteOption, Brand,
+    SiteOption, Brand, OAuth2Client,
 )
 
 
@@ -163,3 +163,8 @@ class TagAdmin(admin.ModelAdmin):
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
     pass
+
+
+@admin.register(OAuth2Client)
+class OAuth2ClientAdmin(admin.ModelAdmin):
+    list_display = ("user", "client_id", "client_name", "website_uri")

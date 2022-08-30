@@ -23,6 +23,7 @@ django-debug-toolbar = "*"
 django-cors-headers = "*"
 django-colorfield = "*"
 vidsrc = {path = "./vidsrc-0.1.0-py3-none-any.whl"}
+authlib = "*"
 
 [dev-packages]
 flake8 = "*"

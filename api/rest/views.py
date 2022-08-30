@@ -36,9 +36,11 @@ from rest_framework.permissions import (
 from rest.permissions import CreateOrIsAuthenticated
 from rest.serializers import (
     UserSerializer, PublisherSerializer, ChannelSerializer, VideoSerializer,
+    OAuth2AuthzCodeSerializer, OAuth2TokenSerializer,
 )
 from rest.models import (
     Publisher, Video, Channel, UserPlay, UserLike, SiteOption, Brand,
+    OAuth2Token,
 )
 
 
@@ -204,3 +206,35 @@ class VideoViewSet(ModelViewSet):
             queryset = queryset.filter(channel=channel)
 
         return queryset
+
+
+class OAuthAuthorizationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        grant = SERVER.get_consent_grant(request, end_user=request.user)
+        serializer = OAuth2AuthzCodeSerializer(grant)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        is_confirmed = request.data.get('confirm') == 'true'
+        user = request.user if is_confirmed else None
+        # NOTE: returns a redirect, no serialization necessary.
+        return SERVER.create_authorization_response(request, grant_user=user)
+
+
+class OAuthTokenView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        return SERVER.create_token_response(request)
+
+
+class OAuth2TokenViewSet(DestroyModelMixin, ReadOnlyModelViewSet):
+    permission_classes = [IsAuthenticated]
+    serializer_class = OAuth2TokenSerializer
+    queryset = OAuth2Token.objects.all()
+    lookup_field = 'uid'
+
+    def get_queryset(self):
+        return self.queryset.filter(user=self.request.user)

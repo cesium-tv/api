@@ -206,9 +206,9 @@ CELERY_BEAT_SCHEDULE = {
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework.authentication.SessionAuthentication',
+        'rest.oauth.OAuth2Authentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        # 'rest_framework.permissions.IsAuthenticated',
         'rest_framework.permissions.AllowAny',
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
@@ -239,3 +239,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 # CORS_ALLOWED_ORIGINS = os.getenv('DJANGO_ALLOWED_CORS_ORIGINS', '').split(',')
 
 SITE_ID = 1
+
+AUTHLIB_OAUTH2_PROVIDER = {
+    'refresh_token_generator': True,
+}
