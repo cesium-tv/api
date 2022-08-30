@@ -1,5 +1,11 @@
+:root {
+    --fg-color: {{ brand.fgcolor }};
+    --bg-color: {{ brand.bgcolor }};
+    --act-color: {{ brand.actcolor }};
+}
+
 body {
-    background-color: {{ brand.bgcolor }};
+    background-color: var(--bg-color);
 }
 
 #logo {

@@ -27,6 +27,17 @@ PLATFORMS = [
     }
 ]
 
+BRAND = [
+    {
+        'name': 'Cesium',
+        'favicon': '',
+        'logo': '',
+        'bgcolor': '#000000',
+        'fgcolor': '#ffffff',
+        'actcolor': '#209cee',
+    },
+]
+
 CHANNELS = [
     {
         'pk': 1,

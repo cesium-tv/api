@@ -1,5 +1,7 @@
 import logging
 import inspect
+import uuid
+from os.path import splitext
 from datetime import datetime
 
 from django import forms
@@ -25,6 +27,11 @@ DATETIME_FMT = '%Y-%m-%dT%H:%M:%S%z'
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.addHandler(logging.NullHandler())
+
+
+def get_file_name(instance, filename):
+    ext = splitext(filename)[1]
+    return f'{uuid.uuid4()}.{ext}'
 
 
 def maybe_parse_date(date_str):
@@ -224,10 +231,13 @@ class User(HashidsModelMixin, AbstractUser):
 class Brand(HashidsModelMixin, models.Model):
     name = models.CharField(max_length=32)
     favicon = models.ImageField(
+        upload_to=get_file_name,
         validators=[FileExtensionValidator(allowed_extensions=['ico'])],
         null=True)
-    logo = models.ImageField()
-    bgcolor = ColorField(default='#000000')
+    logo = models.ImageField(upload_to=get_file_name)
+    bgcolor = ColorField(default='#000000', verbose_name='Background color')
+    fgcolor = ColorField(default='#FFFFFF', verbose_name='Foreground color')
+    actcolor = ColorField(default='#FFFFFF', verbose_name='Active color')
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
