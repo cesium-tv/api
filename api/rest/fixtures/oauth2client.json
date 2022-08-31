@@ -1,0 +1,20 @@
+[
+    {
+      "model": "rest.oauth2client",
+      "pk": 1,
+      "fields": {
+        "user": 1,
+        "client_id": "19bbc55f-0f6f-4fca-95bc-f86286db43da",
+        "client_secret": "50ec237f-20b0-4a47-8a25-b329f6d53beb",
+        "client_name": "Homeland Console",
+        "website_uri": "https://github.com/shanty-social/console/",
+        "description": "In order to use services provided by this website, grant your console access to your account.",
+        "redirect_uris": "[\"http://localhost:8080/api/oauth/shanty/authorize/\"]",
+        "default_redirect_uri": "http://localhost:8080/api/oauth/shanty/authorize/",
+        "scope": ["read-only", "openid", "email", "profile"],
+        "response_types": ["code"],
+        "grant_types": ["authorization_code", "refresh_token", "password", "urn:ietf:params:oauth:grant-type:device_code"],
+        "token_endpoint_auth_method": "client_secret_post"
+      }
+    }
+  ]

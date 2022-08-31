@@ -4,8 +4,8 @@ from rest_framework import routers
 
 from rest.views import (
     render_brand_template, redirect_favicon, PublisherViewSet, UserViewSet,
-    ChannelViewSet, VideoViewSet, OAuth2TokenViewSet, OAuthAuthorizationView,
-    OAuthTokenView,
+    ChannelViewSet, VideoViewSet, OAuth2TokenViewSet, OAuthAuthCodeView,
+    OAuthTokenView, OAuthDeviceCodeView,
 )
 
 
@@ -22,8 +22,13 @@ urlpatterns = [
     path('brand/favicon.ico', redirect_favicon),
     path(
         r'oauth2/authorize/',
-        OAuthAuthorizationView.as_view(),
-        name='oauth_authorize_view'
+        OAuthAuthCodeView.as_view(),
+        name='oauth_auth_code_view'
+    ),
+    path(
+        r'oauth2/device/',
+        OAuthDeviceCodeView.as_view(),
+        name='oauth_device_code_view'
     ),
     path(
         r'oauth2/token/',

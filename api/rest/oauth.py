@@ -1,11 +1,12 @@
 import logging
-import json
-from functools import cache as memoize
 
 from authlib.integrations.django_oauth2 import (
     AuthorizationServer, BearerTokenValidator,
 )
-from authlib.oauth2.rfc8628 import DeviceCodeGrant as BaseDeviceCodeGrant
+from authlib.oauth2.rfc8628 import (
+    DeviceCodeGrant as BaseDeviceCodeGrant,
+    DeviceAuthorizationEndpoint as BaseDeviceAuthorizationEndpoint,
+)
 from authlib.oauth2.rfc6749 import grants
 from authlib.common.security import generate_token
 from authlib.oidc.core import UserInfo
@@ -15,10 +16,10 @@ from rest_framework import authentication, exceptions, permissions
 
 from django.contrib.auth import get_user_model
 from django.conf import settings
+from django.urls import reverse
 
 from rest.models import (
-    OAuth2Client, OAuth2Token, OAuth2Code, OAuth2DeviceCode,
-    OAuth2UserCode,
+    OAuth2Client, OAuth2Token, OAuth2Code, OAuth2DeviceCode
 )
 
 
@@ -30,13 +31,11 @@ User = get_user_model()
 
 
 
-@memoize
-def _load_key():
-    with open(settings.AUTHLIB_JWK, 'rb') as f:
-        return json.load(f)
-
-
 class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
+    TOKEN_ENDPOINT_AUTH_METHODS = [
+        'client_secret_basic', 'client_secret_post',
+    ]
+
     def save_authorization_code(self, code, request):
         return OAuth2Code.objects.create(
             code=code,
@@ -149,20 +148,39 @@ class PasswordGrant(grants.ResourceOwnerPasswordCredentialsGrant):
             return None
 
 
+class DeviceAuthorizationEndpoint(BaseDeviceAuthorizationEndpoint):
+    def get_verification_uri(self):
+        return reverse('oauth_device_code_verify_view')
+
+    def save_device_credential(self, client_id, scope, data):
+        client = OAuth2Client.objects.get(client_id=client_id)
+        OAuth2DeviceCode.objects.create(
+            client=client, scope=scope, device_code=data['device_code'],
+            user_code=data['user_code'], expires_in=data['expires_in'])
+
+
 class DeviceCodeGrant(BaseDeviceCodeGrant):
+    TOKEN_ENDPOINT_AUTH_METHODS = [
+        'client_secret_basic', 'client_secret_post',
+    ]
+
     def query_device_credential(self, device_code):
-        return OAuth2DeviceCode.objects.get(code=device_code)
+        return OAuth2DeviceCode.objects.get(device_code=device_code)
 
     def query_user_grant(self, user_code):
         try:
-            obj = OAuth2UserCode.objects.get(code=user_code)
-            return obj.user, True
+            obj = OAuth2DeviceCode.objects.get(user_code=user_code)
+            return obj.user, obj.allowed
 
-        except OAuth2UserCode.DoesNotExist:
+        except OAuth2DeviceCode.DoesNotExist:
             return None, False
+
+    def should_slow_down(self, credential, now):
+        return False
 
 
 SERVER.register_grant(DeviceCodeGrant)
 SERVER.register_grant(PasswordGrant)
 SERVER.register_grant(AuthorizationCodeGrant)
 SERVER.register_grant(RefreshTokenGrant)
+SERVER.register_endpoint(DeviceAuthorizationEndpoint)

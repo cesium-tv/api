@@ -4,7 +4,7 @@ import uuid
 import string
 import random
 from os.path import splitext
-from datetime import datetime
+from datetime import timedelta
 
 from django import forms
 from django.db import models
@@ -478,7 +478,7 @@ class OAuth2Client(HashidsModelMixin, models.Model, ClientMixin):
     scope = ArrayField(models.CharField(max_length=24), null=True)
     response_types = ArrayField(models.CharField(max_length=32), null=True)
     grant_types = ChoiceArrayField(
-        models.CharField(max_length=32, choices=GRANT_TYPES),
+        models.CharField(max_length=48, choices=GRANT_TYPES),
         null=False,
         default=grant_types_default
     )
@@ -556,13 +556,14 @@ class OAuth2Code(HashidsModelMixin, models.Model, AuthorizationCodeMixin):
     redirect_uri = models.TextField(null=True)
     response_type = models.TextField(null=True)
     scope = ArrayField(models.CharField(max_length=24), null=True)
-    auth_time = models.DateTimeField(null=False, default=timezone.now)
     nonce = models.CharField(max_length=120, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     objects = HashidsManager()
 
     def is_expired(self):
-        return self.auth_time + timedelta(seconds=300) < timezone.now()
+        return self.created + timedelta(seconds=300) < timezone.now()
 
     def get_redirect_uri(self):
         return self.redirect_uri
@@ -578,12 +579,26 @@ class OAuth2Code(HashidsModelMixin, models.Model, AuthorizationCodeMixin):
 
 
 class OAuth2DeviceCode(models.Model):
-    code = models.CharField(
-        max_length=8, unique=True, default=get_random_code)
-
-
-class OAuth2UserCode(models.Model):
+    client = models.ForeignKey(
+        OAuth2Client, related_name='device_codes', on_delete=models.CASCADE)
     user = models.ForeignKey(
-        User, related_name='oauth2_user_codes', on_delete=models.CASCADE)
-    code = models.CharField(
-        max_length=8, unique=True, default=get_random_code)
+        User, null=True, related_name='user_codes', on_delete=models.CASCADE)
+    scope = ArrayField(models.CharField(max_length=24), null=True)
+    device_code = models.CharField(max_length=42)
+    user_code = models.CharField(max_length=9, unique=True)
+    expires_in = models.PositiveSmallIntegerField(default=300)
+    allowed = models.BooleanField(default=False)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    def is_expired(self):
+        return self.created + timedelta(seconds=self.expires_in) < timezone.now()
+
+    def get_client_id(self):
+        return str(self.client.client_id)
+
+    def get_user_code(self):
+        return str(self.user_code)
+
+    def get_scope(self):
+        return self.scope

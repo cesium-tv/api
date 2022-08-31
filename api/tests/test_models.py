@@ -91,7 +91,3 @@ JSON = {
 class TestModels(TestCase):
     def setUp(self):
         self.channel = Channel.objects.get(pk=1)
-
-    def test_video(self):
-        video = Video.objects.from_json(self.channel, JSON)
-        self.assertEqual(5, video.sources.count())

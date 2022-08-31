@@ -31,6 +31,7 @@ services:
       - DJANGO_SU_PASSWORD=password
       - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,cesium.tv,192.168.1.101
       - DJANGO_MEDIA_ROOT=/media
+      - AUTHLIB_INSECURE_TRANSPORT=true
     env_file:
       # See .env.template for instructions.
       - .env

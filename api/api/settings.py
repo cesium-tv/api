@@ -36,9 +36,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-8cbj*@yl)w6(=y%yksh_g1+*3maxm)tp8g7&g%gejj^v)+vi2h'
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
 TEST = 'test' in sys.argv
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = os.getenv('DJANGO_DEBUG', None) == 'true' and not TEST
 
 ALLOWED_HOSTS = [
     s.strip() for s in os.getenv(
@@ -62,11 +63,12 @@ INSTALLED_APPS = [
     'drf_recaptcha',
     'mail_templated',
     'rest_framework',
-    'debug_toolbar',
     'corsheaders',
     'colorfield',
     'rest',
 ]
+if DEBUG:
+    INSTALLED_APPS.insert(3, 'debug_toolbar')
 
 
 MIDDLEWARE = [

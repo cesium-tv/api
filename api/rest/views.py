@@ -40,8 +40,9 @@ from rest.serializers import (
 )
 from rest.models import (
     Publisher, Video, Channel, UserPlay, UserLike, SiteOption, Brand,
-    OAuth2Token,
+    OAuth2Token, OAuth2DeviceCode,
 )
+from rest.oauth import SERVER
 
 
 User = get_user_model()
@@ -208,25 +209,59 @@ class VideoViewSet(ModelViewSet):
         return queryset
 
 
-class OAuthAuthorizationView(APIView):
+class OAuthAuthCodeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
+        # This view returns serialized data that is used by vuejs UI to ask
+        # the user to approve access to their account.
         grant = SERVER.get_consent_grant(request, end_user=request.user)
         serializer = OAuth2AuthzCodeSerializer(grant)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
+        # Handle the user confirming or denying access. The user is redirected
+        # back to the requesting application, where they will display an error
+        # or fetch a token from the token endpoint.
         is_confirmed = request.data.get('confirm') == 'true'
         user = request.user if is_confirmed else None
         # NOTE: returns a redirect, no serialization necessary.
         return SERVER.create_authorization_response(request, grant_user=user)
 
 
+class OAuthDeviceCodeView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        return SERVER.create_endpoint_response('device_authorization', request)
+
+
+class OAuthDeviceCodeVerifyView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        # This view should explain to the user that entering the code
+        # and approving the request will result in the TV having access
+        # to their account.
+        pass
+
+    def post(self, request):
+        # Handle the user confirming or denying access. The polling device will
+        # receive the result of this operation on it's next poll.
+        # TODO: handle KeyError with 400 reply.
+        code = OAuth2DeviceCode.objects.get(
+            user_code=request.data['user_code'])
+        code.user = request.user
+        code.allowed = request.data.get('confirm') == 'true'
+        code.save()
+        return Response('', status=status.HTTP_201_CREATED)
+
+
 class OAuthTokenView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        # import pdb; pdb.set_trace()
         return SERVER.create_token_response(request)
 
 
