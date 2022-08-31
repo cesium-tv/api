@@ -43,6 +43,8 @@ endif
 .PHONY: clean
 clean:
 	${DOCKER_COMPOSE} rm --force
+	$(MAKE) -C api clean
+	$(MAKE) -C vidsrc clean
 
 
 .PHONY: resetdb

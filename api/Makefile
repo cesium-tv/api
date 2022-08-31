@@ -38,3 +38,7 @@ resetmigrations:
 .PHONY: shell
 shell:
 	${DOCKER_COMPOSE} run api python3 manage.py shell
+
+
+.PHONY: clean
+clean:
