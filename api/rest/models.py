@@ -38,6 +38,11 @@ MENU_ITEMS = [
     ('home', 'Home'),
     ('search', 'Search'),
     ('resume', 'Resume'),
+    ('login', 'Login'),
+]
+AUTH_TYPES = [
+    ('password', 'password'),
+    ('device_code', 'device_code'),
 ]
 GRANT_TYPES = [
     ('authorization_code', 'authorization_code'),
@@ -62,7 +67,7 @@ def grant_types_default():
 
 def get_file_name(instance, filename):
     ext = splitext(filename)[1]
-    return f'{uuid.uuid4()}.{ext}'
+    return f'{uuid.uuid4()}{ext}'
 
 
 def get_random_code():
@@ -269,7 +274,7 @@ class Brand(HashidsModelMixin, models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f'Brand {self.name}'
+        return f'{self.name}'
 
 
 class SiteOption(models.Model):
@@ -283,18 +288,11 @@ class SiteOption(models.Model):
         models.CharField(max_length=32, choices=MENU_ITEMS)
     )
     default_lang = models.CharField(max_length=2)
-    auth = ModuleAttributeField(
-        'vidsrc.auth', max_length=32, null=True, blank=True)
+    auth_method = models.CharField(
+        max_length=32, choices=AUTH_TYPES, default='password')
+    auth_required = models.BooleanField(default=False)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
-
-    @property
-    def AuthClass(self):
-        return self._meta.get_field('auth').get_klass(self.auth)
-
-    @property
-    def auth_method(self):
-        return getattr(self.AuthClass, 'method', None)
 
     def __str__(self):
         return f'{self.site.name} options'

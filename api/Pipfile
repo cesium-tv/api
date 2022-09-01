@@ -24,6 +24,7 @@ django-cors-headers = "*"
 django-colorfield = "*"
 vidsrc = {path = "./vidsrc-0.1.0-py3-none-any.whl"}
 authlib = "*"
+django-media-fixtures = {ref = "28897a9b751c72739c331e6922f5cde9302a1202", git = "https://github.com/danbim/django-media-fixtures.git"}
 
 [dev-packages]
 flake8 = "*"

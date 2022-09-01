@@ -31,8 +31,15 @@ resetdb:
 
 .PHONY: resetmigrations
 resetmigrations:
-	rm -f rest/migrations/00*.py
+	sudo rm -rf rest/migrations/__pycache__
+	find rest/migrations/ -maxdepth 1 -type f ! -iname 0001_initial.py ! -name __init__.py -delete
 	${MAKE} migrations
+
+
+.PHONY: fixtures
+fixtures:
+	${DOCKER_COMPOSE} run api python3 manage.py loaddata --app rest site platform publisher user brand siteoption oauth2client channel
+	${DOCKER_COMPOSE} run api python3 manage.py collectmedia
 
 
 .PHONY: shell

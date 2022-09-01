@@ -1,0 +1,30 @@
+[
+  {
+    "model": "rest.brand",
+    "pk": 1,
+    "fields": {
+      "name": "Cesium",
+      "favicon": "327b5a08-6ebe-4398-9e9a-c85392f17c5a.ico",
+      "logo": "4097d4f6-b4c3-4187-9451-86cc31df5c12.png",
+      "bgcolor": "#000000",
+      "fgcolor": "#FFFFFF",
+      "actcolor": "#209CEE",
+      "created": "2022-09-01T20:10:10.827Z",
+      "updated": "2022-09-01T20:10:10.827Z"
+    }
+  },
+  {
+    "model": "rest.brand",
+    "pk": 2,
+    "fields": {
+      "name": "Timcast",
+      "favicon": "327b5a08-6ebe-4398-9e9a-c85392f17c5a.ico",
+      "logo": "4097d4f6-b4c3-4187-9451-86cc31df5c12.png",
+      "bgcolor": "#000000",
+      "fgcolor": "#FFFFFF",
+      "actcolor": "#209CEE",
+      "created": "2022-09-01T20:10:10.827Z",
+      "updated": "2022-09-01T20:10:10.827Z"
+    }
+  }
+]

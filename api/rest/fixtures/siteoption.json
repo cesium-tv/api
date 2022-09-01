@@ -1,0 +1,32 @@
+[
+  {
+    "model": "rest.siteoption",
+    "pk": 1,
+    "fields": {
+      "site": 1,
+      "title": "Cesium TV",
+      "brand": 1,
+      "menu": "[\"home\", \"search\", \"login\"]",
+      "default_lang": "en",
+      "auth_method": "device_code",
+      "auth_required": false,
+      "created": "2022-09-01T20:11:44.657Z",
+      "updated": "2022-09-01T20:11:44.657Z"
+    }
+  },
+  {
+    "model": "rest.siteoption",
+    "pk": 2,
+    "fields": {
+      "site": 2,
+      "title": "Timcast TV",
+      "brand": 2,
+      "menu": "[\"home\", \"search\", \"login\"]",
+      "default_lang": "en",
+      "auth_method": "password",
+      "auth_required": true,
+      "created": "2022-09-01T20:11:44.657Z",
+      "updated": "2022-09-01T20:11:44.657Z"
+    }
+  }
+]

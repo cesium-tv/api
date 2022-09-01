@@ -3,12 +3,16 @@ VIDSRC_SRC = ${shell find vidsrc/vidsrc}
 DOCKER_COMPOSE = docker-compose -p cesium.tv
 
 
-api/vidsrc-?.?.?-*.whl: vidsrc/dist/vidsrc-?.?.?-*.whl
-	cp vidsrc/dist/vidsrc-?.?.?-*.whl api/
+vidsrc/dist/vidsrc-0.1.0-py3-none-any.whl:
+	$(MAKE) -C vidsrc build
+
+
+api/vidsrc-0.1.0-py3-none-any.whl: vidsrc/dist/vidsrc-0.1.0-py3-none-any.whl
+	cp vidsrc/dist/vidsrc-0.1.0-py3-none-any.whl api/
 
 
 .PHONY: build
-build: api/vidsrc-?.?.?-*.whl
+build: api/vidsrc-0.1.0-py3-none-any.whl
 	${DOCKER_COMPOSE} build
 
 
@@ -65,3 +69,8 @@ migrate:
 .PHONY: migrations
 migrations:
 	$(MAKE) -C api migrations
+
+
+.PHONY: fixtures
+fixtures:
+	$(MAKE) -C api fixtures

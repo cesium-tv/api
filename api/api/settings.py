@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'django_extensions',
     'django_celery_beat',
     'djcelery_email',
+    'django_media_fixtures',
     'drf_recaptcha',
     'mail_templated',
     'rest_framework',
@@ -245,3 +246,5 @@ SITE_ID = 1
 AUTHLIB_OAUTH2_PROVIDER = {
     'refresh_token_generator': True,
 }
+
+MEDIA_FIXTURE_FOLDERNAME='media'

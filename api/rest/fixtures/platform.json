@@ -1,0 +1,18 @@
+[
+  {
+    "model": "rest.platform",
+    "pk": 1,
+    "fields": {
+      "name": "Timcast",
+      "crawler": "TimcastCrawler"
+    }
+  },
+  {
+    "model": "rest.platform",
+    "pk": 2,
+    "fields": {
+      "name": "PeerTube",
+      "crawler": "PeerTubeCrawler"
+    }
+  }
+]
