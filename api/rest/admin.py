@@ -95,6 +95,7 @@ class UserAdmin(BaseUserAdmin):
 
 class MenuItemInline(admin.TabularInline):
     model = MenuItem
+    ordering = ('sort', 'id', )
 
 
 class SiteOptionInline(EditLinkToInlineObject, admin.StackedInline):
@@ -188,7 +189,7 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
-    pass
+    readonly_fields = ('theme_css', )
 
 
 @admin.register(OAuth2Client)

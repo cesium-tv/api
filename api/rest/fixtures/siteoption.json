@@ -6,12 +6,36 @@
       "site": 1,
       "title": "Cesium TV",
       "brand": 1,
-      "menu": "[\"home\", \"search\", \"login\"]",
       "default_lang": "en",
       "auth_method": "device_code",
       "auth_required": false,
+      "default_menu_item": "home",
       "created": "2022-09-01T20:11:44.657Z",
       "updated": "2022-09-01T20:11:44.657Z"
+    }
+  },
+  {
+    "model": "rest.menuitem",
+    "pk": 1,
+    "fields": {
+      "option": 1,
+      "name": "search"
+    }
+  },
+  {
+    "model": "rest.menuitem",
+    "pk": 2,
+    "fields": {
+      "option": 1,
+      "name": "home"
+    }
+  },
+  {
+    "model": "rest.menuitem",
+    "pk": 3,
+    "fields": {
+      "option": 1,
+      "name": "resume"
     }
   },
   {
@@ -21,10 +45,10 @@
       "site": 2,
       "title": "Timcast TV",
       "brand": 2,
-      "menu": "[\"home\", \"search\", \"login\"]",
       "default_lang": "en",
       "auth_method": "password",
       "auth_required": true,
+      "default_menu_item": "home",
       "created": "2022-09-01T20:11:44.657Z",
       "updated": "2022-09-01T20:11:44.657Z"
     }
