@@ -8,10 +8,12 @@ from django.contrib.sites.models import Site
 from django.contrib.sites.admin import SiteAdmin as BaseSiteAdmin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.utils.translation import gettext_lazy as _
+from django.utils.safestring import mark_safe
+from django.urls import reverse
 
 from rest.models import (
     User, Publisher, Channel, Video, VideoSource, Tag, Subscription,
-    SiteOption, Brand, OAuth2Client,
+    SiteOption, MenuItem, Brand, OAuth2Client,
 )
 
 
@@ -40,6 +42,16 @@ def reregister(*models, site=None):
         return admin_class
 
     return _model_admin_wrapper
+
+
+class EditLinkToInlineObject(object):
+    def advanced_options(self, instance):
+        url = reverse('admin:%s_%s_change' % (
+            instance._meta.app_label,  instance._meta.model_name),  args=[instance.pk] )
+        if instance.pk:
+            return mark_safe(u'<a href="{u}">show</a>'.format(u=url))
+        else:
+            return ''
 
 
 class UserCreationForm(BaseUserCreationForm):
@@ -81,8 +93,22 @@ class UserAdmin(BaseUserAdmin):
     inlines = (SubscriptionInline, )
 
 
-class SiteOptionInline(admin.StackedInline):
+class MenuItemInline(admin.TabularInline):
+    model = MenuItem
+
+
+class SiteOptionInline(EditLinkToInlineObject, admin.StackedInline):
     model = SiteOption
+    fields = (
+        'title', 'brand', 'default_lang', 'auth_method', 'auth_required',
+        'advanced_options',
+    )
+    readonly_fields = ('advanced_options', )
+
+
+@admin.register(SiteOption)
+class SiteOptionAdmin(admin.ModelAdmin):
+    inlines = (MenuItemInline, )
 
 
 @reregister(Site)

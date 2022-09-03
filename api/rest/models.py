@@ -342,18 +342,29 @@ class SiteOption(models.Model):
     brand = models.ForeignKey(
         Brand, null=True, blank=True, related_name='sites',
         on_delete=models.CASCADE)
-    menu = ChoiceArrayField(
-        models.CharField(max_length=32, choices=MENU_ITEMS)
-    )
     default_lang = models.CharField(max_length=2)
     auth_method = models.CharField(
         max_length=32, choices=AUTH_TYPES, default='password')
     auth_required = models.BooleanField(default=False)
+    default_menu_item = models.CharField(
+        null=True, blank=True, max_length=16, choices=MENU_ITEMS)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f'{self.site.name} options'
+
+
+class MenuItem(models.Model):
+    option = models.ForeignKey(
+        SiteOption, related_name='menu_items', on_delete=models.CASCADE)
+    name = models.CharField(
+        max_length=16, choices=MENU_ITEMS, help_text='Internal identifier')
+    title = models.CharField(
+        null=True, blank=True, max_length=24,
+        help_text='Title of item in menu')
+    sort = models.PositiveSmallIntegerField(
+        default=0, help_text='Order of item in menu')
 
 
 class Publisher(HashidsModelMixin, models.Model):

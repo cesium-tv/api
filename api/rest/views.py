@@ -80,6 +80,7 @@ def theme_js(request):
             'user': request.user,
             'site': request.site,
             'options': options,
+            'menu_items': options.menu_items.all().order_by('sort', 'id'),
             'brand': options.brand,
         }
 

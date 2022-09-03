@@ -1,5 +1,11 @@
 window.CesiumTheme = {
-    "menu": [{% for item in options.menu %}"{{ item }}"{% if not forloop.last %},{% endif %}{% endfor %}],
+    "menu": [{% for item in menu_items %}
+        {
+            "name": "{{ item.name }}",
+            "title": {% if item.title is None %}null{% else %}"{{ item.title }}"{% endif %},
+        },{% endfor %}
+    ],
+    "default_menu_item": "{{ options.default_menu_item }}",
     "auth_method": "{{ options.auth_method }}",
     "auth_required": {% if options.auth_required %}true{% else %}false{% endif %},
     "title": "{{ options.title }}",
