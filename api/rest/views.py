@@ -7,12 +7,11 @@ import glob
 from urllib.parse import urlparse, urlunparse
 
 from django.conf import settings
-from django.http import HttpResponseRedirect, Http404
+from django.http import HttpResponseRedirect, Http404, HttpResponse
 from django.core.cache import cache
 from django.contrib.sites.models import Site
 from django.dispatch import receiver
 from django.db.models.signals import post_save, post_delete
-from django.db.models import ObjectDoesNotExist
 from django.contrib.auth import get_user_model, login, logout, authenticate
 from django.shortcuts import get_object_or_404, render, redirect
 from django.views.decorators.csrf import csrf_exempt
@@ -36,11 +35,11 @@ from rest_framework.permissions import (
 from rest.permissions import CreateOrIsAuthenticated
 from rest.serializers import (
     UserSerializer, PublisherSerializer, ChannelSerializer, VideoSerializer,
-    OAuth2AuthzCodeSerializer, OAuth2TokenSerializer,
+    OAuth2ClientSerializer, OAuth2TokenSerializer,
 )
 from rest.models import (
     Publisher, Video, Channel, UserPlay, UserLike, SiteOption, Brand,
-    OAuth2Token, OAuth2DeviceCode,
+    OAuth2Token, OAuth2DeviceCode, OAuth2Client,
 )
 from rest.oauth import SERVER
 
@@ -48,44 +47,48 @@ from rest.oauth import SERVER
 User = get_user_model()
 
 
-def redirect_favicon(request):
+def favicon(request):
     try:
         brand = SiteOption.objects.get(site=request.site).brand
 
-    except ObjectDoesNotExist:
+    except SiteOption.DoesNotExist:
         raise Http404()
 
     return redirect(brand.favicon.url)
 
 
-def render_brand_template(template_name):
-    if template_name.endswith('.css'):
-        content_type = 'text/css'
-    elif template_name.endswith('.js'):
-        content_type = 'text/javascript'
-    elif template_name.endswith('.json'):
-        content_type = 'application/json'
-    else:
-        content_type = 'text/html'
+def theme_css(request):
+    try:
+        brand = SiteOption.objects.get(site=request.site).brand
 
-    def inner(request):
-        try:
-            options = SiteOption.objects.get(site=request.site)
-            context = {
-                'user': request.user,
-                'site': request.site,
-                'options': options,
-                'brand': options.brand,
-            }
+    except SiteOption.DoesNotExist:
+        raise Http404()
 
-        except ObjectDoesNotExist:
-            raise Http404()
+    try:
+        css = brand.theme_css.read()
 
-        return render(
-            request, template_name, context=context, content_type=content_type
-        )
+    except FileNotFoundError:
+        raise Http404()
 
-    return inner
+    return HttpResponse(css, content_type='text/css')
+
+
+def theme_js(request):
+    try:
+        options = SiteOption.objects.get(site=request.site)
+        context = {
+            'user': request.user,
+            'site': request.site,
+            'options': options,
+            'brand': options.brand,
+        }
+
+    except SiteOption.DoesNotExist:
+        raise Http404()
+
+    return render(
+        request, 'theme.js', context=context, content_type='text/javascript'
+    )
 
 
 class UserViewSet(ModelViewSet):
@@ -216,7 +219,7 @@ class OAuthAuthCodeView(APIView):
         # This view returns serialized data that is used by vuejs UI to ask
         # the user to approve access to their account.
         grant = SERVER.get_consent_grant(request, end_user=request.user)
-        serializer = OAuth2AuthzCodeSerializer(grant)
+        serializer = OAuth2ClientSerializer(grant['client'])
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
@@ -243,14 +246,17 @@ class OAuthDeviceCodeVerifyView(APIView):
         # This view should explain to the user that entering the code
         # and approving the request will result in the TV having access
         # to their account.
-        pass
+        user_code = request.query_params['user_code']
+        client = get_object_or_404(OAuth2Client, device_codes__user_code=user_code)
+        serializer = OAuth2ClientSerializer(client)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
         # Handle the user confirming or denying access. The polling device will
         # receive the result of this operation on it's next poll.
         # TODO: handle KeyError with 400 reply.
         code = OAuth2DeviceCode.objects.get(
-            user_code=request.data['user_code'])
+            user_code=request.query_params['user_code'])
         code.user = request.user
         code.allowed = request.data.get('confirm') == 'true'
         code.save()

@@ -3,9 +3,9 @@ from django.urls import path
 from rest_framework import routers
 
 from rest.views import (
-    render_brand_template, redirect_favicon, PublisherViewSet, UserViewSet,
-    ChannelViewSet, VideoViewSet, OAuth2TokenViewSet, OAuthAuthCodeView,
-    OAuthTokenView, OAuthDeviceCodeView,
+    theme_js, theme_css, favicon, PublisherViewSet,
+    UserViewSet, ChannelViewSet, VideoViewSet, OAuth2TokenViewSet,
+    OAuthAuthCodeView, OAuthTokenView, OAuthDeviceCodeView,
 )
 
 
@@ -17,9 +17,9 @@ router.register(r'publishers', PublisherViewSet, basename='publisher')
 router.register(r'tokens', OAuth2TokenViewSet, basename='token')
 
 urlpatterns = [
-    path('brand/theme.css', render_brand_template('theme.css')),
-    path('brand/theme.js', render_brand_template('theme.js')),
-    path('brand/favicon.ico', redirect_favicon),
+    path('brand/theme.css', theme_css),
+    path('brand/theme.js', theme_js),
+    path('brand/favicon.ico', favicon),
     path(
         r'oauth2/authorize/',
         OAuthAuthCodeView.as_view(),

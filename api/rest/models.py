@@ -6,10 +6,16 @@ import random
 from os.path import splitext
 from datetime import timedelta
 
+import sass
+from csscompressor import compress
+
 from django import forms
 from django.db import models
 from django.db.transaction import atomic
 from django.core.validators import FileExtensionValidator
+from django.core.files.base import ContentFile
+from django.template import Context
+from django.template.loader import get_template
 from django.contrib.postgres.fields import CITextField, ArrayField
 from django.contrib.sites.models import Site
 from django.utils.functional import cached_property
@@ -48,8 +54,27 @@ GRANT_TYPES = [
     ('authorization_code', 'authorization_code'),
     ('refresh_token', 'refresh_token'),
     ('password', 'password'),
-    ('device_code', 'device_code'),
+    ('urn:ietf:params:oauth:grant-type:device_code', 'urn:ietf:params:oauth:grant-type:device_code'),
 ]
+SCHEME_COLORS = {
+    'light': {
+        'scheme_main': '#ffffff',
+        'scheme_main_bis': '#fafafa',
+        'scheme_main_ter': '#f5f5f5',
+        'scheme_invert': '#0a0a0a',
+        'scheme_invert_bis': '#121212',
+        'scheme_invert_ter': '#242424',
+    },
+    'dark': {
+        'scheme_main': '#363636',
+        'scheme_main_bis': '#121212',
+        'scheme_main_ter': '#242424',
+        'scheme_invert': '#ffffff',
+        'scheme_invert_bis': '#fafafa',
+        'scheme_invert_ter': '#f5f5f5',
+    }
+}
+SCHEME_NAMES = zip(SCHEME_COLORS.keys(), SCHEME_COLORS.keys())
 TOKEN_AUTH_METHODS = [
     ('client_secret_post', 'client_secret_post'),
     ('client_secret_basic', 'client_secret_basic'),
@@ -262,19 +287,52 @@ class User(HashidsModelMixin, AbstractUser):
 
 class Brand(HashidsModelMixin, models.Model):
     name = models.CharField(max_length=32)
+    scheme = models.CharField(
+        max_length=5, choices=SCHEME_NAMES, default='light')
+    theme_css = models.FileField(
+        validators=[FileExtensionValidator(allowed_extensions=['css'])])
     favicon = models.ImageField(
         upload_to=get_file_name,
-        validators=[FileExtensionValidator(allowed_extensions=['ico'])],
+        validators=[FileExtensionValidator(allowed_extensions=['ico', 'png'])],
         null=True)
     logo = models.ImageField(upload_to=get_file_name)
-    bgcolor = ColorField(default='#000000', verbose_name='Background color')
-    fgcolor = ColorField(default='#FFFFFF', verbose_name='Foreground color')
-    actcolor = ColorField(default='#FFFFFF', verbose_name='Active color')
+    primary = ColorField(default='#8c67ef', verbose_name='Primary color')
+    info = ColorField(default='#3e8ed0', verbose_name='Informative dialogs / text')
+    success = ColorField(default='#48c78e', verbose_name='Success dialogs / text')
+    warning = ColorField(default='#ffe08a', verbose_name='Warning dialogs / text')
+    danger = ColorField(default='#f14668', verbose_name='Danger dialogs / text')
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f'{self.name}'
+
+    def compile(self, template_name='theme.scss', minify=None):
+        if minify is None:
+            minify = settings.DJANGO_CSS_MINIFY
+        brand = {
+            'primary': self.primary,
+            'info': self.info,
+            'success': self.success,
+            'warning': self.warning,
+            'danger': self.danger,
+            'logo': {
+                'url': self.logo.url,
+            }
+        }
+        brand.update(SCHEME_COLORS[self.scheme])
+        template = get_template(template_name)
+        rendered = template.render({ 'brand': brand })
+        css = sass.compile(
+            string=rendered, include_paths=[settings.DJANGO_SCSS_PATH])
+        if minify:
+            css = compress(css)
+        return css
+
+    def save(self, *args, **kwargs):
+        css = self.compile()
+        self.theme_css = ContentFile(css, name=f'{uuid.uuid4()}.css')
+        return super().save(*args, **kwargs)
 
 
 class SiteOption(models.Model):
@@ -580,7 +638,7 @@ class OAuth2DeviceCode(models.Model):
     client = models.ForeignKey(
         OAuth2Client, related_name='device_codes', on_delete=models.CASCADE)
     user = models.ForeignKey(
-        User, null=True, related_name='user_codes', on_delete=models.CASCADE)
+        User, null=True, related_name='devices_codes', on_delete=models.CASCADE)
     scope = ArrayField(models.CharField(max_length=24), null=True)
     device_code = models.CharField(max_length=42)
     user_code = models.CharField(max_length=9, unique=True)

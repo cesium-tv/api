@@ -28,13 +28,12 @@ class OAuth2TestCase(TestCase):
         # 1. Get device_code and user_code and verify url.
         r = self.client.post(reverse('oauth_device_code_view'), {
             'client_id': '19bbc55f-0f6f-4fca-95bc-f86286db43da',
-            'client_secret': '50ec237f-20b0-4a47-8a25-b329f6d53beb',
             'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
         })
         self.assertEqual(200, r.status_code)
         device_code = r.json()['device_code']
         user_code = r.json()['user_code']
-        verify_uri = r.json()['verification_uri']
+        verify_uri = r.json()['verification_uri_complete']
         # 2. Poll for our token (should fail)
         r = self.client.post(reverse('oauth_token_view'), {
             'grant_type': 'urn:ietf:params:oauth:grant-type:device_code',
@@ -49,7 +48,6 @@ class OAuth2TestCase(TestCase):
         userClient.login(username='test', password='password')
         r = userClient.post(verify_uri, {
             'confirm': 'true',
-            'user_code': user_code,
         })
         self.assertEqual(201, r.status_code)
         # 4. Now polling should yield a token.

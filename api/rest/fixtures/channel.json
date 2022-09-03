@@ -3,7 +3,7 @@
     "model": "rest.channel",
     "pk": 1,
     "fields": {
-      "publisher": 1,
+      "publisher": 2,
       "platform": 1,
       "name": "IRL",
       "url": "https://timcast.com/members-area/section/timcast-irl/",
@@ -29,7 +29,7 @@
     "model": "rest.channel",
     "pk": 2,
     "fields": {
-      "publisher": 1,
+      "publisher": 2,
       "platform": 1,
       "name": "Green Room",
       "url": "https://timcast.com/members-area/section/green-room/",
@@ -55,7 +55,7 @@
     "model": "rest.channel",
     "pk": 3,
     "fields": {
-      "publisher": 1,
+      "publisher": 2,
       "platform": 1,
       "name": "Tales From the Inverted World",
       "url": "https://timcast.com/members-area/section/tales-from-the-inverted-world/",

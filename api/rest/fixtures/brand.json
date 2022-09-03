@@ -6,9 +6,7 @@
       "name": "Cesium",
       "favicon": "327b5a08-6ebe-4398-9e9a-c85392f17c5a.ico",
       "logo": "4097d4f6-b4c3-4187-9451-86cc31df5c12.png",
-      "bgcolor": "#000000",
-      "fgcolor": "#FFFFFF",
-      "actcolor": "#209CEE",
+      "scheme": "dark",
       "created": "2022-09-01T20:10:10.827Z",
       "updated": "2022-09-01T20:10:10.827Z"
     }
@@ -18,11 +16,8 @@
     "pk": 2,
     "fields": {
       "name": "Timcast",
-      "favicon": "327b5a08-6ebe-4398-9e9a-c85392f17c5a.ico",
-      "logo": "4097d4f6-b4c3-4187-9451-86cc31df5c12.png",
-      "bgcolor": "#000000",
-      "fgcolor": "#FFFFFF",
-      "actcolor": "#209CEE",
+      "favicon": "b337580d-e8a6-4376-bcd0-d307281402a7.png",
+      "logo": "cb48af24-2592-4cd9-b232-4d4ca4a3e258.svg",
       "created": "2022-09-01T20:10:10.827Z",
       "updated": "2022-09-01T20:10:10.827Z"
     }
