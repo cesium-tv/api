@@ -1,159 +1,53 @@
 // Import Bulma's core
 @import "bulma/sass/utilities/_all";
 
-// User controlled
+// Colors
 
-$primary: {{ brand.primary }};
-$info: {{ brand.info }};
-$success: {{ brand.success }};
-$warning: {{ brand.warning }};
-$danger: {{ brand.danger }};
+$black:         {{ brand.colors.black }};
+$black-bis:     {{ brand.colors.black_bis }};
+$black-ter:     {{ brand.colors.black_ter }};
 
-// Scheme controlled
+$grey-darker:   {{ brand.colors.grey_darker }};
+$grey-dark:     {{ brand.colors.grey_dark }};
+$grey:          {{ brand.colors.grey }};
+$grey-light:    {{ brand.colors.grey_light }};
+$grey-lighter:  {{ brand.colors.grey_lighter }};
+$grey-lightest: {{ brand.colors.grey_lightest }};
 
-$scheme-main: {{ brand.scheme_main }};
-$scheme-main-bis: {{ brand.scheme_main_bis }};
-$scheme-main-ter: {{ brand.scheme_main_ter }};
-$scheme-invert: {{ brand.scheme_invert }};
-$scheme-invert-bis: {{ brand.scheme_invert_bis }};
-$scheme-invert-ter: {{ brand.scheme_invert_ter }};
+$white-ter:     {{ brand.colors.white_ter }};
+$white-bis:     {{ brand.colors.white_bis }};
+$white:         {{ brand.colors.white }};
 
-// Set your colors
-$primary-light: findLightColor($primary);
-$primary-dark: findDarkColor($primary);
-$primary-invert: findColorInvert($primary);
-
-$info-invert: findColorInvert($info) !default;
-$info-light: findLightColor($info) !default;
-$info-dark: findDarkColor($info) !default;
-
-$success-invert: findColorInvert($success) !default;
-$success-light: findLightColor($success) !default;
-$success-dark: findDarkColor($success) !default;
-
-$warning-invert: findColorInvert($warning) !default;
-$warning-light: findLightColor($warning) !default;
-$warning-dark: findDarkColor($warning) !default;
-
-$danger-invert: findColorInvert($danger) !default;
-$danger-light: findLightColor($danger) !default;
-$danger-dark: findDarkColor($danger) !default;
-
-$light-invert: findColorInvert($light) !default;
-$dark-invert: findColorInvert($dark) !default;
-
-// General colors
-
-$background: $scheme-main-ter !default;
-
-$border: $grey-lighter !default;
-$border-hover: $grey-light !default;
-$border-light: $grey-lightest !default;
-$border-light-hover: $grey-light !default;
-
-// Text colors
-
-$text: $grey-dark !default;
-$text-invert: findColorInvert($text) !default;
-$text-light: $grey !default;
-$text-strong: $grey-darker !default;
-
-// Typography
-
-$family-primary: $family-sans-serif !default;
-$family-secondary: $family-sans-serif !default;
-$family-code: $family-monospace !default;
-
-
-// Lists and maps
-$custom-colors: null !default;
-$custom-shades: null !default;
-
-// Setup $colors to use as bulma classes (e.g. 'is-primary')
-$colors: mergeColorMaps(
-    (
-        "white": (
-            $white,
-            $black,
-        ),
-        "black": (
-            $black,
-            $white,
-        ),
-        "light": (
-            $light,
-            $light-invert,
-        ),
-        "dark": (
-            $dark,
-            $dark-invert,
-        ),
-        "primary": (
-            $primary,
-            $primary-invert,
-            $primary-light,
-            $primary-dark,
-        ),
-        "link": (
-            $link,
-            $link-invert,
-            $link-light,
-            $link-dark,
-        ),
-        "info": (
-            $info,
-            $info-invert,
-            $info-light,
-            $info-dark,
-        ),
-        "success": (
-            $success,
-            $success-invert,
-            $success-light,
-            $success-dark,
-        ),
-        "warning": (
-            $warning,
-            $warning-invert,
-            $warning-light,
-            $warning-dark,
-        ),
-        "danger": (
-            $danger,
-            $danger-invert,
-            $danger-light,
-            $danger-dark,
-        ),
-    ),
-    $custom-colors
-);
+$orange:        {{ brand.colors.orange }};
+$yellow:        {{ brand.colors.yellow }};
+$green:         {{ brand.colors.green }};
+$turquoise:     {{ brand.colors.turquoise }};
+$cyan:          {{ brand.colors.cyan }};
+$blue:          {{ brand.colors.blue }};
+$purple:        {{ brand.colors.purple }};
+$red:           {{ brand.colors.red }};
 
 // Links
-$link: $primary;
-$link-invert: $primary-invert;
-$link-focus-border: $primary;
+$link: $blue;
 
 $loading-background: rgba(0,0,0,0.5);
 
 // Import Bulma and Buefy styles
 @import "bulma/bulma";
 @import "buefy/src/scss/buefy";
+@import "bulma-divider";
 
 // Cesium specifics
 
 :root {
-    --logo: url({{ brand.logo.url }});
-    --primary: {{ brand.primary }};
-    --info: {{ brand.info }};
-    --success: {{ brand.success }};
-    --warning: {{ brand.warning }};
-    --danger: {{ brand.danger }};
-    --scheme-main: {{ brand.scheme_main }};
-    --scheme-main-bis: {{ brand.scheme_main_bis }};
-    --scheme-main-ter: {{ brand.scheme_main_ter }};
-    --scheme-invert: {{ brand.scheme_invert }};
-    --scheme-invert-bis: {{ brand.scheme_invert_bis }};
-    --scheme-invert-ter: {{ brand.scheme_invert_ter }};
+    --logo: url({{ brand.logo.data_uri }});
+    --white: {{ brand.colors.white }};
+    --black: {{ brand.colors.black }};
+    --primary: {{ brand.colors.turquoise }};
+    --info: {{ brand.colors.cyan }};
+    --success: {{ brand.colors.green }};
+    --warning: {{ brand.colors.yellow }};
+    --danger: {{ brand.colors.red }};
 }
 
 #logo {

@@ -5,12 +5,14 @@ import string
 import random
 from os.path import splitext
 from datetime import timedelta
+from base64 import b64encode
 
 import sass
 from csscompressor import compress
 
 from django import forms
 from django.db import models
+from django.db.models.fields.files import FieldFile
 from django.db.transaction import atomic
 from django.core.validators import FileExtensionValidator
 from django.core.files.base import ContentFile
@@ -28,6 +30,7 @@ from cache_memoize import cache_memoize
 from hashids import Hashids
 from colorfield.fields import ColorField
 from mail_templated import send_mail
+from datauri import DataURI
 
 from authlib.oauth2.rfc6749 import (
     ClientMixin, TokenMixin, AuthorizationCodeMixin,
@@ -58,23 +61,48 @@ GRANT_TYPES = [
 ]
 SCHEME_COLORS = {
     'light': {
-        'scheme_main': '#ffffff',
-        'scheme_main_bis': '#fafafa',
-        'scheme_main_ter': '#f5f5f5',
-        'scheme_invert': '#0a0a0a',
-        'scheme_invert_bis': '#121212',
-        'scheme_invert_ter': '#242424',
+        'white': '#ffffff',
+        'white_bis': '#fafafa',
+        'white_ter': '#f5f5f5',
+        'black': '#0a0a0a',
+        'black_bis': '#121212',
+        'black_ter': '#242424',
     },
     'dark': {
-        'scheme_main': '#363636',
-        'scheme_main_bis': '#121212',
-        'scheme_main_ter': '#242424',
-        'scheme_invert': '#ffffff',
-        'scheme_invert_bis': '#fafafa',
-        'scheme_invert_ter': '#f5f5f5',
+        'white': '#0a0a0a',
+        'white_bis': '#121212',
+        'white_ter': '#242424',
+        'black': '#ffffff',
+        'black_bis': '#fafafa',
+        'black_ter': '#f5f5f5',
     }
 }
-SCHEME_NAMES = zip(SCHEME_COLORS.keys(), SCHEME_COLORS.keys())
+SCHEME_NAMES = [(None, None)] + list(
+    zip(SCHEME_COLORS.keys(), SCHEME_COLORS.keys()))
+THEME_COLORS = {
+        'white':         '#ffffff',  # hsl(0, 0%, 100%) !default
+        'white_bis':     '#fafafa',  # hsl(0, 0%, 98%) !default
+        'white_ter':     '#f5f5f5',  # hsl(0, 0% 96%) !default
+        'black':         '#0a0a0a',  # hsl(0, 0%, 4%) !default
+        'black_bis':     '#121212',  # hsl(0, 0%, 7%) !default
+        'black_ter':     '#242424',  # hsl(0, 0%, 14%) !default
+
+        'grey_darker':   '#363636',  # hsl(0, 0%, 21%) !default
+        'grey_dark':     '#4a4a4a',  # hsl(0, 0%, 29%) !default
+        'grey':          '#7a7a7a',  # hsl(0, 0%, 48%) !default
+        'grey_light':    '#b5b5b5',  # hsl(0, 0%, 71%) !default
+        'grey_lighter':  '#dbdbdb',  # hsl(0, 0%, 86%) !default
+        'grey_lightest': '#ededed',  # hsl(0, 0%, 93%) !default
+
+        'orange':        '#ff470f',  # hsl(14,  100%, 53%) !default
+        'yellow':        '#ffe08a',  # hsl(44,  100%, 77%) !default
+        'green':         '#48c78e',  # hsl(153, 53%,  53%) !default
+        'turquoise':     '#00d1b2',  # hsl(171, 100%, 41%) !default
+        'cyan':          '#3e8ed0',  # hsl(207, 61%,  53%) !default
+        'blue':          '#485fc7',  # hsl(229, 53%,  53%) !default
+        'purple':        '#b86bff',  # hsl(271, 100%, 71%) !default
+        'red':           '#f14668',  # hsl(348, 86%, 61%) !default
+}
 TOKEN_AUTH_METHODS = [
     ('client_secret_post', 'client_secret_post'),
     ('client_secret_basic', 'client_secret_basic'),
@@ -169,6 +197,24 @@ class ChoiceArrayField(ArrayField):
         # care for it.
         # pylint:disable=bad-super-call
         return super(ArrayField, self).formfield(**defaults)
+
+
+
+class DataURIImageFieldFile(FieldFile):
+    @property
+    def data_uri(self):
+        self._require_file()
+        data_uri = DataURI.from_file(self.path)
+        base64 = b64encode(data_uri.data).decode('utf8')
+        return f'data:{data_uri.mimetype};base64,{base64}'
+
+
+class FileField(models.FileField):
+    attr_class = DataURIImageFieldFile
+
+
+class ImageField(models.ImageField):
+    attr_class = DataURIImageFieldFile
 
 
 class ModuleAttributeField(models.CharField):
@@ -288,19 +334,15 @@ class User(HashidsModelMixin, AbstractUser):
 class Brand(HashidsModelMixin, models.Model):
     name = models.CharField(max_length=32)
     scheme = models.CharField(
-        max_length=5, choices=SCHEME_NAMES, default='light')
-    theme_css = models.FileField(
+        max_length=5, null=True, blank=True, choices=SCHEME_NAMES)
+    theme_css = FileField(
         validators=[FileExtensionValidator(allowed_extensions=['css'])])
-    favicon = models.ImageField(
+    favicon = ImageField(
         upload_to=get_file_name,
         validators=[FileExtensionValidator(allowed_extensions=['ico', 'png'])],
         null=True)
-    logo = models.ImageField(upload_to=get_file_name)
-    primary = ColorField(default='#8c67ef', verbose_name='Primary color')
-    info = ColorField(default='#3e8ed0', verbose_name='Informative dialogs / text')
-    success = ColorField(default='#48c78e', verbose_name='Success dialogs / text')
-    warning = ColorField(default='#ffe08a', verbose_name='Warning dialogs / text')
-    danger = ColorField(default='#f14668', verbose_name='Danger dialogs / text')
+    logo = ImageField(upload_to=get_file_name, null=True, blank=True)
+    colors = models.JSONField(default=THEME_COLORS, null=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -310,19 +352,8 @@ class Brand(HashidsModelMixin, models.Model):
     def compile(self, template_name='theme.scss', minify=None):
         if minify is None:
             minify = settings.DJANGO_CSS_MINIFY
-        brand = {
-            'primary': self.primary,
-            'info': self.info,
-            'success': self.success,
-            'warning': self.warning,
-            'danger': self.danger,
-            'logo': {
-                'url': self.logo.url,
-            }
-        }
-        brand.update(SCHEME_COLORS[self.scheme])
         template = get_template(template_name)
-        rendered = template.render({ 'brand': brand })
+        rendered = template.render({ 'brand': self })
         css = sass.compile(
             string=rendered, include_paths=[settings.DJANGO_SCSS_PATH])
         if minify:
@@ -330,6 +361,9 @@ class Brand(HashidsModelMixin, models.Model):
         return css
 
     def save(self, *args, **kwargs):
+        if self.scheme:
+            print('HERE HERE HERE', SCHEME_COLORS[self.scheme])
+            self.colors.update(SCHEME_COLORS[self.scheme])
         css = self.compile()
         self.theme_css = ContentFile(css, name=f'{uuid.uuid4()}.css')
         return super().save(*args, **kwargs)

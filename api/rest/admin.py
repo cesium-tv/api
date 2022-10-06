@@ -1,5 +1,7 @@
+from django import forms
 from django.db.models import Count
 from django.contrib import admin
+from django.contrib.admin.utils import flatten_fieldsets
 from django.contrib.auth.forms import (
     UserCreationForm as BaseUserCreationForm,
     UserChangeForm as BaseUserChangeForm
@@ -11,9 +13,11 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.safestring import mark_safe
 from django.urls import reverse
 
+from colorfield.widgets import ColorWidget
+
 from rest.models import (
-    User, Publisher, Channel, Video, VideoSource, Tag, Subscription,
-    SiteOption, MenuItem, Brand, OAuth2Client,
+    THEME_COLORS, User, Publisher, Channel, Video, VideoSource, Tag,
+    Subscription, SiteOption, MenuItem, Brand, OAuth2Client,
 )
 
 
@@ -187,9 +191,46 @@ class TagAdmin(admin.ModelAdmin):
     pass
 
 
+class BrandForm(forms.ModelForm):
+    class Meta:
+        model = Brand
+        exclude = ['colors']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        colors = self.instance.colors
+        for name in THEME_COLORS.keys():
+            field_name = f'color_{name}'
+            self.fields[field_name] = forms.CharField(
+                widget=ColorWidget)
+            self.initial[field_name] = colors[name]
+
+    def save(self, *args, **kwargs):
+        brand = self.instance
+        brand.colors = {
+            name: self.cleaned_data.pop(f'color_{name}') \
+                for name in THEME_COLORS.keys()
+        }
+        return super().save(*args, **kwargs)
+
+
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
+    form = BrandForm
     readonly_fields = ('theme_css', )
+    fieldsets = [
+        (None, {"fields": ("name", "scheme", "favicon", "logo")}),
+    ]
+
+    def get_form(self, request, obj=None, **kwargs):
+        kwargs['fields'] = flatten_fieldsets(self.fieldsets)
+        return super().get_form(request, obj, **kwargs)
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = list(super().get_fieldsets(request, obj=obj))
+        fields = [f'color_{name}' for name in THEME_COLORS.keys()]
+        fieldsets.append(['Colors', {'fields': fields}])
+        return fieldsets
 
 
 @admin.register(OAuth2Client)

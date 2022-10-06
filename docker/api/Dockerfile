@@ -12,7 +12,7 @@ ENV DJANGO_DEBUG=false \
     DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,cesium.tv \
     DJANGO_REDIS_HOST=redis \
     DJANGO_REDIS_PORT=6379 \
-    DJANGO_SCSS_PATH=/var/scss/ \
+    DJANGO_SCSS_PATH=/var/scss \
     UWSGI_STATIC=on
 
 ADD ./api /app
@@ -33,6 +33,7 @@ RUN apt update && \
         tar xzf - --strip=1 --one-top-level=${DJANGO_SCSS_PATH}/bulma bulma-${BULMA_VERSION}/sass bulma-${BULMA_VERSION}/bulma.sass && \
     wget -qO- https://github.com/buefy/buefy/archive/refs/tags/v${BUEFY_VERSION}.tar.gz | \
         tar xzf - --strip=1 --one-top-level=${DJANGO_SCSS_PATH}/buefy buefy-${BUEFY_VERSION}/src/scss && \
+    wget -O ${DJANGO_SCSS_PATH}/bulma-divider.sass  https://raw.githubusercontent.com/Wikiki/bulma-divider/master/src/sass/index.sass && \
     wget https://raw.githubusercontent.com/eficode/wait-for/master/wait-for -O /wait-for && \
     pip3 install pipenv && \
     pipenv install --system --dev && \
