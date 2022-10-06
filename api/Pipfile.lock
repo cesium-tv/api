@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "1fa4f8f6f6033b2be1bf5d10ff097d45e4008e3b72f6c3359c6f13d5373d680a"
+            "sha256": "108ed4c119fb792ce53e5932fdf6d531f966229a125209a0516b8d1b7893731e"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -452,6 +452,9 @@
             "version": "==3.2.1"
         },
         "django-haystack": {
+            "extras": [
+                "elasticsearch"
+            ],
             "hashes": [
                 "sha256:97e3197aefc225fe405b6f17600a2534bf827cb4d6743130c20bc1a06f7293a4"
             ],
