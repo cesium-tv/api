@@ -13,6 +13,7 @@ services:
     depends_on:
       - db
       - redis
+      - es
     ports:
       - 8000:8000
     extra_hosts:
@@ -59,6 +60,7 @@ services:
     depends_on:
       - db
       - redis
+      - es
     extra_hosts:
       - cesium.tv:192.168.1.239
     volumes:
@@ -72,6 +74,14 @@ services:
     env_file:
       # See .env.template for instructions.
       - .env
+
+  es:
+    image: elasticsearch:8.4.3
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      - discovery.type=single-node
 
   db:
     image: postgres:14-alpine

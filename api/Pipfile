@@ -27,6 +27,8 @@ authlib = "*"
 django-media-fixtures = {ref = "28897a9b751c72739c331e6922f5cde9302a1202", git = "https://github.com/danbim/django-media-fixtures.git"}
 libsass = "*"
 csscompressor = "*"
+django-haystack = "*"
+django-elasticsearch-dsl = "*"
 
 [dev-packages]
 flake8 = "*"
