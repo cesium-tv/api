@@ -33,6 +33,9 @@ services:
       - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,cesium.tv,192.168.1.101
       - DJANGO_MEDIA_ROOT=/media
       - AUTHLIB_INSECURE_TRANSPORT=true
+      - DJANGO_ES_INSECURE_TRANSPORT=true
+      - DJANGO_ES_HOST=es
+      - DJANGO_ES_PORT=9200
     env_file:
       # See .env.template for instructions.
       - .env
@@ -50,6 +53,9 @@ services:
       - DJANGO_DB_HOST=db
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
+      - DJANGO_ES_INSECURE_TRANSPORT=true
+      - DJANGO_ES_HOST=es
+      - DJANGO_ES_PORT=9200
     env_file:
       # See .env.template for instructions.
       - .env
@@ -71,6 +77,9 @@ services:
       - DJANGO_DB_HOST=db
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
+      - DJANGO_ES_INSECURE_TRANSPORT=true
+      - DJANGO_ES_HOST=es
+      - DJANGO_ES_PORT=9200
     env_file:
       # See .env.template for instructions.
       - .env
@@ -79,9 +88,11 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.4.3-amd64
     ports:
       - 9200:9200
-      - 9300:9300
     environment:
       - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - xpack.security.transport.ssl.enabled=false
 
   db:
     image: postgres:14-alpine

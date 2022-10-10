@@ -390,6 +390,9 @@ class Platform(HashidsModelMixin, models.Model):
     def CrawlerClass(self):
         return self._meta.get_field('crawler').get_klass(self.crawler)
 
+    def __str__(self):
+        return self.name
+
 
 class Channel(HashidsModelMixin, models.Model):
     class Meta:
@@ -420,6 +423,9 @@ class Channel(HashidsModelMixin, models.Model):
 
 class Tag(models.Model):
     name = CITextField(max_length=32, null=False, unique=True)
+
+    def __str__(self):
+        return self.name
 
 
 class Video(HashidsModelMixin, models.Model):

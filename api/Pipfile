@@ -29,6 +29,8 @@ libsass = "*"
 csscompressor = "*"
 django-elasticsearch-dsl = "*"
 django-haystack = {extras = ["elasticsearch"], version = "*"}
+django-elasticsearch-debug-toolbar = "*"
+celery-haystack-ng = "*"
 
 [dev-packages]
 flake8 = "*"

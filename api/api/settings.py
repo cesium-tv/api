@@ -66,10 +66,32 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'colorfield',
+    'haystack',
     'rest',
+    'celery_haystack',
 ]
+
+DEBUG_TOOLBAR_PANELS = [
+    'debug_toolbar.panels.history.HistoryPanel',
+    'debug_toolbar.panels.versions.VersionsPanel',
+    'debug_toolbar.panels.timer.TimerPanel',
+    'debug_toolbar.panels.settings.SettingsPanel',
+    'debug_toolbar.panels.headers.HeadersPanel',
+    'debug_toolbar.panels.request.RequestPanel',
+    'debug_toolbar.panels.sql.SQLPanel',
+    'debug_toolbar.panels.staticfiles.StaticFilesPanel',
+    'debug_toolbar.panels.templates.TemplatesPanel',
+    'debug_toolbar.panels.cache.CachePanel',
+    'debug_toolbar.panels.signals.SignalsPanel',
+    'debug_toolbar.panels.logging.LoggingPanel',
+    'debug_toolbar.panels.redirects.RedirectsPanel',
+    'debug_toolbar.panels.profiling.ProfilingPanel',
+]
+
 if DEBUG:
     INSTALLED_APPS.insert(3, 'debug_toolbar')
+    INSTALLED_APPS.insert(4, 'elastic_panel',)
+    DEBUG_TOOLBAR_PANELS.append('elastic_panel.panel.ElasticDebugPanel')
 
 
 MIDDLEWARE = [
@@ -250,3 +272,16 @@ AUTHLIB_OAUTH2_PROVIDER = {
 MEDIA_FIXTURE_FOLDERNAME='media'
 DJANGO_SCSS_PATH = os.getenv('DJANGO_SCSS_PATH')
 DJANGO_CSS_MINIFY = not DEBUG
+
+DJANGO_ES_HOST = os.getenv('DJANGO_ES_HOST', 'es')
+DJANGO_ES_PORT = int(os.getenv('DJANGO_ES_PORT', '9200'))
+DJANGO_ES_INSECURE_TRANSPORT = os.getenv('DJANGO_ES_INSECURE_TRANSPORT', '').lower() in ('true', 'on', 'yes')
+HAYSTACK_CONNECTIONS = {
+    'default': {
+        'ENGINE': 'haystack.backends.elasticsearch7_backend.Elasticsearch7SearchEngine',
+        'URL': f'http://{DJANGO_ES_HOST}:{DJANGO_ES_PORT}/',
+        'INDEX_NAME': 'api',
+#        'KWARGS': {'verify_certs': DJANGO_ES_INSECURE_TRANSPORT},
+    },
+}
+HAYSTACK_SIGNAL_PROCESSOR = 'celery_haystack.signals.CelerySignalProcessor'
