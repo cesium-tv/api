@@ -67,6 +67,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'colorfield',
     'haystack',
+    'pgcrypto',
     'rest',
     'celery_haystack',
 ]
@@ -131,6 +132,10 @@ TEMPLATES = [
 WSGI_APPLICATION = 'api.wsgi.application'
 
 
+PUBLIC_PGP_KEY_PATH = get_from_env_or_file('PUBLIC_PGP_KEY_PATH')
+PRIVATE_PGP_KEY_PATH = get_from_env_or_file('PRIVATE_PGP_KEY_PATH')
+
+
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 
@@ -143,6 +148,8 @@ DATABASES = {
         'NAME': os.getenv('DJANGO_DB_NAME', 'cesium'),
         'USER': os.getenv('DJANGO_DB_USER', 'user'),
         'PASSWORD': DJANGO_DB_PASSWORD,
+        'PUBLIC_PGP_KEY': PUBLIC_PGP_KEY_PATH,
+        'PRIVATE_PGP_KEY': PRIVATE_PGP_KEY_PATH,
     }
 }
 

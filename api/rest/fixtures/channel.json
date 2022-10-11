@@ -3,8 +3,7 @@
     "model": "rest.channel",
     "pk": 1,
     "fields": {
-      "publisher": 2,
-      "platform": 1,
+      "user": 1,
       "name": "IRL",
       "url": "https://timcast.com/members-area/section/timcast-irl/",
       "extern_id": "timcast-irl",
@@ -29,8 +28,7 @@
     "model": "rest.channel",
     "pk": 2,
     "fields": {
-      "publisher": 2,
-      "platform": 1,
+      "user": 1,
       "name": "Green Room",
       "url": "https://timcast.com/members-area/section/green-room/",
       "extern_id": "green-room",
@@ -55,8 +53,7 @@
     "model": "rest.channel",
     "pk": 3,
     "fields": {
-      "publisher": 2,
-      "platform": 1,
+      "user": 1,
       "name": "Tales From the Inverted World",
       "url": "https://timcast.com/members-area/section/tales-from-the-inverted-world/",
       "extern_id": "tales-from-the-inverted-world",
@@ -81,8 +78,7 @@
     "model": "rest.channel",
     "pk": 4,
     "fields": {
-      "publisher": 1,
-      "platform": 2,
+      "user": 1,
       "name": "Bens Favorites",
       "url": "http://cesium.tv/",
       "extern_id": "btimby_channel",

@@ -38,7 +38,7 @@ resetmigrations:
 
 .PHONY: fixtures
 fixtures:
-	${DOCKER_COMPOSE} run api python3 manage.py loaddata --app rest site platform publisher user brand siteoption oauth2client channel
+	${DOCKER_COMPOSE} run api python3 manage.py loaddata --app rest site user brand siteoption oauth2client channel
 	${DOCKER_COMPOSE} run api python3 manage.py collectmedia --noinput
 
 

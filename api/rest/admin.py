@@ -12,8 +12,8 @@ from django.utils.safestring import mark_safe
 from django.urls import reverse
 
 from rest.models import (
-    User, Publisher, Channel, Video, VideoSource, Tag, Subscription,
-    SiteOption, MenuItem, Brand, OAuth2Client,
+    User, Channel, Video, VideoSource, Tag, Subscription, SiteOption,
+    MenuItem, Brand, OAuth2Client, Episode,
 )
 
 
@@ -121,24 +121,10 @@ class ChannelInline(admin.TabularInline):
     model = Channel
 
 
-@admin.register(Publisher)
-class PublisherAdmin(admin.ModelAdmin):
-    list_display = ('name', "channel_count", )
-    inlines = (ChannelInline, )
-
-    def channel_count(self, obj):
-        return obj.channel_count
-
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        queryset = queryset.annotate(channel_count=Count("channels"))
-        return queryset
-
-
 @admin.register(Channel)
 class ChannelAdmin(admin.ModelAdmin):
-    list_display = ("name", "video_count", "subscriber_count", "url")
-    list_filter = ('publisher', )
+    list_display = ("user", "name", "video_count", "subscriber_count", "url")
+    # list_filter = ('publisher', )
     inlines = (SubscriptionInline, )
 
     def video_count(self, obj):
@@ -150,7 +136,7 @@ class ChannelAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         queryset = queryset.annotate(
-            video_count=Count("videos"),
+            video_count=Count("episodes"),
             subscriber_count=Count("subscribers")
         )
         return queryset
@@ -160,11 +146,15 @@ class VideoSourceInline(admin.TabularInline):
     model = VideoSource
 
 
+class EpisodeInline(admin.TabularInline):
+    model = Episode
+
+
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ("title", "source_count", "channel", "poster", "published")
-    list_filter = ("channel", )
-    inlines = (VideoSourceInline, )
+    list_display = ("title", "source_count", "poster", "published")
+    list_filter = ("channels__channel", )
+    inlines = (VideoSourceInline, EpisodeInline)
     ordering = ('-published',)
 
     def source_count(self, obj):
@@ -179,7 +169,6 @@ class VideoAdmin(admin.ModelAdmin):
 @admin.register(VideoSource)
 class VideoSourceAdmin(admin.ModelAdmin):
     list_display = ("dimension", "video", "url")
-    list_filter = ("video__channel", )
 
 
 @admin.register(Tag)

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "fdea56edf99288b7804b138fecc77cf22610a0ccf2169756c75433259811ae61"
+            "sha256": "202a6c7dae94514fe4641d4fcb9e702f99c8e4aff3125afe4265884d33166749"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -121,7 +121,7 @@
                 "sha256:080f6b423c5f7af4b29bb947753ad0dbd0fa37c3d7bb36cd3ac66d4e11d558f5",
                 "sha256:20b9df93f6590381298bb7351d9c2c3315726c97914d317ccbc9c5d7fe70ef2a"
             ],
-            "markers": "python_version >= '3.7' and python_version < '4.0'",
+            "markers": "python_version >= '3.7' and python_full_version < '4.0.0'",
             "version": "==0.1.4"
         },
         "aioredis": {
@@ -315,7 +315,7 @@
                 "sha256:a0713dc7a1de3f06bc0df5a9567ad19ead2d3d5689b434768a6145bff77c0667",
                 "sha256:f184f0d851d96b6d29297354ed981b7dd71df7ff500d82fa6d11f0856bee8035"
             ],
-            "markers": "python_version < '4.0' and python_full_version >= '3.6.2'",
+            "markers": "python_full_version >= '3.6.2' and python_full_version < '4.0.0'",
             "version": "==0.3.0"
         },
         "click-plugins": {
@@ -503,6 +503,14 @@
             "git": "https://github.com/danbim/django-media-fixtures.git",
             "ref": "28897a9b751c72739c331e6922f5cde9302a1202"
         },
+        "django-pgcrypto-fields": {
+            "hashes": [
+                "sha256:52bdfc95309e6d281f7c4f3778d4d04da0c87d38b5ac69b4b3832ae9930ab789",
+                "sha256:b34e380d98217e6003cdf375f097a361b6e7b88490f0c73cf46d893836603b42"
+            ],
+            "index": "pypi",
+            "version": "==2.6.0"
+        },
         "django-redis": {
             "hashes": [
                 "sha256:1d037dc02b11ad7aa11f655d26dac3fb1af32630f61ef4428860a2e29ff92026",
@@ -516,7 +524,7 @@
                 "sha256:15746ed367a5a32eda76cfa2886eeec1de8cda79f519b7c5e12f87ed7cdbd663",
                 "sha256:199f211082eeac7e83563929b8ce41399c1c0f00dfc2f36bc00bea381027eaaa"
             ],
-            "markers": "python_version >= '3.7' and python_version < '4.0'",
+            "markers": "python_version >= '3.7' and python_full_version < '4.0.0'",
             "version": "==5.0"
         },
         "djangorestframework": {
@@ -1011,7 +1019,7 @@
                 "sha256:11a734d8f02c6b128035aba8faf32748f2016310a6a1cbc6aa5b1e2580742e8f",
                 "sha256:ddb0d15cb644720160d49abb1ad0d97e87a55581febf1b7531be9e983aad7742"
             ],
-            "markers": "python_version >= '3.7' and python_version < '4.0'",
+            "markers": "python_version >= '3.7' and python_full_version < '4.0.0'",
             "version": "==1.0.2"
         },
         "python-crontab": {
@@ -1048,7 +1056,7 @@
                 "sha256:7c5599b102feddaa661c826c56ab4fee28bfd17f5abca1ebbe3e7f19d7c97983",
                 "sha256:8fefa2a1a1365bf5520aac41836fbee479da67864514bdb821f31ce07ce65349"
             ],
-            "markers": "python_version >= '3.7' and python_version < '4.0'",
+            "markers": "python_version >= '3.7' and python_full_version < '4.0.0'",
             "version": "==2.28.1"
         },
         "requests-file": {
@@ -1111,7 +1119,7 @@
                 "sha256:3fa96cf423e6987997fc326ae8df396db2a8b7c667747d47ddd8ecba91f4a74e",
                 "sha256:b930dd878d5a8afb066a637fbb35144fe7901e3b209d1cd4f524bd0e9deee997"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4, 3.5' and python_version < '4.0'",
+            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4, 3.5' and python_full_version < '4.0.0'",
             "version": "==1.26.12"
         },
         "uwsgi": {
@@ -1336,11 +1344,11 @@
         },
         "zipp": {
             "hashes": [
-                "sha256:05b45f1ee8f807d0cc928485ca40a07cb491cf092ff587c0df9cb1fd154848d2",
-                "sha256:47c40d7fe183a6f21403a199b3e4192cca5774656965b0a4988ad2f8feb5f009"
+                "sha256:3a7af91c3db40ec72dd9d154ae18e008c69efe8ca88dde4f9a731bb82fe2f9eb",
+                "sha256:972cfa31bc2fedd3fa838a51e9bc7e64b7fb725a8c00e7431554311f180e9980"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==3.8.1"
+            "version": "==3.9.0"
         }
     },
     "develop": {

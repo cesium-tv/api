@@ -34,12 +34,12 @@ from rest_framework.permissions import (
 
 from rest.permissions import CreateOrIsAuthenticated
 from rest.serializers import (
-    UserSerializer, PublisherSerializer, ChannelSerializer, VideoSerializer,
-    OAuth2ClientSerializer, OAuth2TokenSerializer,
+    UserSerializer, ChannelSerializer, VideoSerializer, OAuth2ClientSerializer,
+    OAuth2TokenSerializer,
 )
 from rest.models import (
-    Publisher, Video, Channel, UserPlay, UserLike, SiteOption, Brand,
-    OAuth2Token, OAuth2DeviceCode, OAuth2Client,
+    Video, Channel, Play, Like, SiteOption, Brand, OAuth2Token,
+    OAuth2DeviceCode, OAuth2Client,
 )
 from rest.oauth import SERVER
 
@@ -140,20 +140,6 @@ class UserViewSet(ModelViewSet):
         return HttpResponseRedirect(next)
 
 
-class PublisherViewSet(ModelViewSet):
-    permission_classes = [AllowAny]
-    serializer_class = PublisherSerializer
-    lookup_field = 'uid'
-
-    def get_queryset(self):
-        queryset = Publisher.objects \
-            .annotate(
-                num_channels=Count('channels'),
-            ) \
-            .filter(sites__in=[self.request.site])
-        return queryset
-
-
 class ChannelViewSet(ModelViewSet):
     permission_classes = [AllowAny]
     serializer_class = ChannelSerializer
@@ -184,18 +170,18 @@ class VideoViewSet(ModelViewSet):
         if user_id:
             queryset = queryset.annotate(
                 played=Exists(
-                    UserPlay.objects.filter(
+                    Play.objects.filter(
                         video_id=OuterRef('pk'),
                         user_id=user_id)
                 ),
                 liked=Exists(
-                    UserLike.objects.filter(
+                    Like.objects.filter(
                         video_id=OuterRef('pk'),
                         user_id=user_id,
                         like=1)
                 ),
                 disliked=Exists(
-                    UserLike.objects.filter(
+                    Like.objects.filter(
                         video_id=OuterRef('pk'),
                         user_id=user_id,
                         like=-1)

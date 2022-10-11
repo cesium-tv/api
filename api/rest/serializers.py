@@ -4,8 +4,7 @@ from rest_framework import serializers
 from drf_recaptcha.fields import ReCaptchaV2Field
 
 from rest.models import (
-    Publisher, Channel, VideoSource, Video,  OAuth2Token, OAuth2Client,
-    OAuth2Code,
+    Channel, VideoSource, Video,  OAuth2Token, OAuth2Client, OAuth2Code,
 )
 
 User = get_user_model()
@@ -66,27 +65,14 @@ class UserConfirmSerializer(serializers.Serializer):
         return user
 
 
-class PublisherSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Publisher
-        fields = ('uid', 'name', 'url', 'channels')
-
-    uid = serializers.CharField(read_only=True)
-    channels = serializers.IntegerField(source='num_channels')
-
-
 class ChannelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Channel
-        fields = ('uid', 'name', 'url', 'platform', 'videos', 'subscribers')
+        fields = ('uid', 'name', 'url', 'videos', 'subscribers')
 
     uid = serializers.CharField(read_only=True)
-    platform = serializers.SerializerMethodField()
     videos = serializers.IntegerField(source='num_videos')
     subscribers = serializers.IntegerField(source='num_subscribers')
-
-    def get_platform(self, obj):
-        return Publisher.hashids().encode(obj.platform_id)
 
 
 class VideoSourceSerializer(serializers.ModelSerializer):

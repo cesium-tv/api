@@ -3,9 +3,8 @@ from django.urls import path
 from rest_framework import routers
 
 from rest.views import (
-    theme_js, theme_css, favicon, PublisherViewSet,
-    UserViewSet, ChannelViewSet, VideoViewSet, OAuth2TokenViewSet,
-    OAuthAuthCodeView, OAuthTokenView, OAuthDeviceCodeView,
+    theme_js, theme_css, favicon, UserViewSet, ChannelViewSet, VideoViewSet,
+    OAuth2TokenViewSet, OAuthAuthCodeView, OAuthTokenView, OAuthDeviceCodeView,
 )
 
 
@@ -13,7 +12,6 @@ router = routers.SimpleRouter()
 router.register(r'users', UserViewSet, basename='user')
 router.register(r'videos', VideoViewSet, basename='video')
 router.register(r'channels', ChannelViewSet, basename='channel')
-router.register(r'publishers', PublisherViewSet, basename='publisher')
 router.register(r'tokens', OAuth2TokenViewSet, basename='token')
 
 urlpatterns = [
