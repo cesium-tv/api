@@ -398,12 +398,11 @@ class Channel(HashidsModelMixin, models.Model):
     user = models.ForeignKey(
         User, related_name='channels', on_delete=models.CASCADE)
     is_public = models.BooleanField(default=False)
-    crawler = ModuleAttributeField('vidsrc.crawl', max_length=32)
-    name = models.CharField(max_length=64)
     url = models.URLField()
-    extern_id = models.CharField(max_length=128, unique=True)
-    extern_cursor = models.JSONField(null=True, blank=True)
-    options = models.JSONField(null=True, blank=True)
+    name = models.CharField(max_length=64)
+    title = models.CharField(max_length=128, null=True, blank=True)
+    description = models.TextField(null=True)
+    poster = models.ImageField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -420,6 +419,11 @@ class Channel(HashidsModelMixin, models.Model):
         Channel.objects.filter(id=self.id).update(**kwargs)
 
 
+class ChannelMeta(models.Model):
+    channel = models.OneToOneField(Channel, on_delete=models.CASCADE)
+    metadata = models.JSONField()
+
+
 class Tag(models.Model):
     name = CITextField(max_length=32, null=False, unique=True)
 
@@ -431,9 +435,9 @@ class Video(HashidsModelMixin, models.Model):
     tags = models.ManyToManyField(Tag, related_name='tagged')
     extern_id = models.CharField(max_length=128, unique=True)
     title = models.CharField(max_length=256)
+    description = models.TextField(null=True, blank=True)
     poster = models.URLField()
     duration = models.PositiveIntegerField()
-    original = models.JSONField(null=True, blank=True)
     total_plays = models.PositiveIntegerField(default=0)
     total_likes = models.PositiveIntegerField(default=0)
     total_dislikes = models.PositiveIntegerField(default=0)
@@ -449,6 +453,11 @@ class Video(HashidsModelMixin, models.Model):
         for src in self.sources.all():
             src.video_id = self.id
             src.save()
+
+
+class VideoMeta(models.Model):
+    video = models.OneToOneField(Video, on_delete=models.CASCADE)
+    metadata = models.JSONField()
 
 
 class Episode(models.Model):
@@ -482,7 +491,6 @@ class VideoSource(HashidsModelMixin, models.Model):
     fps = models.PositiveSmallIntegerField()
     size = models.PositiveBigIntegerField(null=True, blank=True)
     url = models.URLField()
-    original = models.JSONField(null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -493,6 +501,11 @@ class VideoSource(HashidsModelMixin, models.Model):
     def dimension(self):
         height = f'x{self.height}' if self.height else ''
         return f'{self.width}{height}'
+
+
+class VideoSourceMeta(models.Model):
+    source = models.OneToOneField(VideoSource, on_delete=models.CASCADE)
+    metadata = models.JSONField()
 
 
 class Subscription(HashidsModelMixin, models.Model):

@@ -4,93 +4,10 @@
     "pk": 1,
     "fields": {
       "user": 1,
-      "name": "IRL",
+      "name": "Members Only: Timcast IRL",
       "url": "https://timcast.com/members-area/section/timcast-irl/",
-      "extern_id": "timcast-irl",
-      "extern_cursor": null,
-      "options": {
-        "depth": null,
-        "limit": null,
-        "whitelist": [
-          "^https://timcast.com/members-area/section/timcast-irl/",
-          "^https://timcast.com/members-area/.*member-podcast"
-        ],
-        "credentials": {
-          "password": "env[TIMCAST_PASSWORD]",
-          "username": "env[TIMCAST_USERNAME]"
-        }
-      },
       "created": "2022-09-01T20:09:12.922Z",
       "updated": "2022-09-01T20:09:12.922Z"
     }
-  },
-  {
-    "model": "rest.channel",
-    "pk": 2,
-    "fields": {
-      "user": 1,
-      "name": "Green Room",
-      "url": "https://timcast.com/members-area/section/green-room/",
-      "extern_id": "green-room",
-      "extern_cursor": null,
-      "options": {
-        "depth": null,
-        "limit": null,
-        "whitelist": [
-          "^https://timcast.com/members-area/section/green-room/",
-          "^https://timcast.com/members-area/.*green-room"
-        ],
-        "credentials": {
-          "password": "env[TIMCAST_PASSWORD]",
-          "username": "env[TIMCAST_USERNAME]"
-        }
-      },
-      "created": "2022-09-01T20:09:12.923Z",
-      "updated": "2022-09-01T20:09:12.923Z"
-    }
-  },
-  {
-    "model": "rest.channel",
-    "pk": 3,
-    "fields": {
-      "user": 1,
-      "name": "Tales From the Inverted World",
-      "url": "https://timcast.com/members-area/section/tales-from-the-inverted-world/",
-      "extern_id": "tales-from-the-inverted-world",
-      "extern_cursor": null,
-      "options": {
-        "depth": null,
-        "limit": null,
-        "whitelist": [
-          "^https://timcast.com/members-area/section/tales-from-the-inverted-world/",
-          "^https://timcast.com/members-area/"
-        ],
-        "credentials": {
-          "password": "env[TIMCAST_PASSWORD]",
-          "username": "env[TIMCAST_USERNAME]"
-        }
-      },
-      "created": "2022-09-01T20:09:12.924Z",
-      "updated": "2022-09-01T20:09:12.924Z"
-    }
-  },
-  {
-    "model": "rest.channel",
-    "pk": 4,
-    "fields": {
-      "user": 1,
-      "name": "Bens Favorites",
-      "url": "http://cesium.tv/",
-      "extern_id": "btimby_channel",
-      "extern_cursor": null,
-      "options": {
-        "credentials": {
-          "password": "env[PEERTUBE_PASSWORD]",
-          "username": "env[PEERTUBE_USERNAME]"
-        }
-      },
-      "created": "2022-09-01T20:09:12.925Z",
-      "updated": "2022-09-01T20:09:12.925Z"
-    }
-  }  
+  }
 ]

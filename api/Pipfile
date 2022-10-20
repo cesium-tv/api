@@ -22,9 +22,8 @@ drf_recaptcha = "*"
 django-debug-toolbar = "*"
 django-cors-headers = "*"
 django-colorfield = "*"
-vidsrc = {path = "./vidsrc-0.1.0-py3-none-any.whl"}
 authlib = "*"
-django-media-fixtures = {ref = "28897a9b751c72739c331e6922f5cde9302a1202", git = "https://github.com/danbim/django-media-fixtures.git"}
+django-media-fixtures = {ref = "e34d578ebdced10e904d01b982988fd1eaf16a87", git = "https://github.com/btimby/django-media-fixtures.git"}
 libsass = "*"
 csscompressor = "*"
 django-elasticsearch-dsl = "*"
@@ -32,6 +31,7 @@ django-haystack = {extras = ["elasticsearch"], version = "*"}
 django-elasticsearch-debug-toolbar = "*"
 celery-haystack-ng = "*"
 django-pgcrypto-fields = "*"
+videosrc = "*"
 
 [dev-packages]
 flake8 = "*"
