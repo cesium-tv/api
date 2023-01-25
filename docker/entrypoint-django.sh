@@ -1,9 +1,11 @@
 #!/bin/bash -x
 
 CMD=${@:-api}
+DJANGO_MEDIA_ROOT=${DJANGO_MEDIA_ROOT:-/tmp}
 
 /wait-for ${DJANGO_DB_HOST}:${DJANGO_DB_PORT}
 /wait-for ${DJANGO_REDIS_HOST}:${DJANGO_REDIS_PORT}
+/wait-for ${DJANGO_ES_HOST}:${DJANGO_ES_PORT}
 
 if [ "${CMD}" == "api" ]; then
     DJANGO_HOST=${DJANGO_HOST:-0.0.0.0}
@@ -17,22 +19,21 @@ if [ "${CMD}" == "api" ]; then
         ARGS="${ARGS} --static-map /=/app/static/"
     fi
 
-    chown -R 65534:65534 ${DJANGO_MEDIA_ROOT:-/tmp}
+    chown -R 65534:65534 ${DJANGO_MEDIA_ROOT}
 
     uwsgi --enable-threads --http-socket=${DJANGO_HOST}:${DJANGO_PORT} \
         --uid=65534 --gid=65534 --manage-script-name \
-        --static-map /media=${DJANGO_MEDIA_ROOT:-/tmp} --static-gzip-all \
+        --static-map /media=${DJANGO_MEDIA_ROOT} --static-gzip-all \
         --mount /=api.wsgi:application ${ARGS}
 
 elif [ "${CMD}" == "migrate" ]; then
-    su nobody -c 'python3 manage.py migrate --noinput'
+    python3 manage.py migrate --noinput
 
 elif [ "${CMD}" == "beat" ]; then
-    su nobody -c 'celery -A api beat -l info'
+    celery -A api beat -l info
 
 elif [ "${CMD}" == "celery" ]; then
     python manage.py celery
-    # su nobody -c 'celery -A api worker -l info'
 
 elif [ "${CMD}" == "test" ]; then
     python3 manage.py test

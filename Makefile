@@ -7,8 +7,14 @@ build:
 	${DOCKER_COMPOSE} build
 
 
+.PHONY: run
 run:
 	${DOCKER_COMPOSE} up
+
+
+.PHONY: stop
+stop:
+	${DOCKER_COMPOSE} stop
 
 
 .PHONY: test
@@ -64,3 +70,8 @@ migrations:
 .PHONY: fixtures
 fixtures:
 	$(MAKE) -C api fixtures
+
+
+.PHONY: image
+image:
+	${DOCKER} build . -f docker/Dockerfile

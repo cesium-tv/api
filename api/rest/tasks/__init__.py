@@ -1,4 +1,6 @@
-from rest.tasks.video import import_videos
+from rest.tasks.video import (
+    crawl_subscription, clone_subscription, update_channel,
+)
 
 
-__all__ = ['import_videos']
+__all__ = ['crawl_subscription', 'clone_subscription', 'update_channel']

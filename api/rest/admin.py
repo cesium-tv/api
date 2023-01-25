@@ -11,9 +11,12 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.safestring import mark_safe
 from django.urls import reverse
 
+from bitfield import BitField
+from bitfield.forms import BitFieldCheckboxSelectMultiple
+
 from rest.models import (
     User, Channel, Video, VideoSource, Tag, Subscription, SiteOption,
-    MenuItem, Brand, OAuth2Client, Episode,
+    MenuItem, Brand, OAuth2Client, SubscriptionVideo,
 )
 
 
@@ -67,6 +70,9 @@ class UserChangeForm(BaseUserChangeForm):
 
 
 class SubscriptionInline(admin.TabularInline):
+    formfield_overrides = {
+            BitField: {'widget': BitFieldCheckboxSelectMultiple},
+    }
     model = Subscription
 
 
@@ -126,6 +132,9 @@ class ChannelAdmin(admin.ModelAdmin):
     list_display = ("user", "name", "video_count", "subscriber_count", "url")
     # list_filter = ('publisher', )
     inlines = (SubscriptionInline, )
+    formfield_overrides = {
+            BitField: {'widget': BitFieldCheckboxSelectMultiple},
+    }
 
     def video_count(self, obj):
         return obj.video_count
@@ -146,15 +155,15 @@ class VideoSourceInline(admin.TabularInline):
     model = VideoSource
 
 
-class EpisodeInline(admin.TabularInline):
-    model = Episode
+class SubscriptionVideoInline(admin.TabularInline):
+    model = SubscriptionVideo
 
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
     list_display = ("title", "source_count", "poster", "published")
-    list_filter = ("channels__channel", )
-    inlines = (VideoSourceInline, EpisodeInline)
+    list_filter = ("channel", )
+    inlines = (VideoSourceInline, SubscriptionVideoInline)
     ordering = ('-published',)
 
     def source_count(self, obj):

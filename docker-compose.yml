@@ -6,32 +6,29 @@ volumes:
 
 services:
   api:
-    image: cesium/api
+    image: cesium
     build:
-      dockerfile: ./docker/api/Dockerfile
+      dockerfile: ./docker/Dockerfile
+      target: django
       context: .
     depends_on:
       - db
       - redis
       - es
-    ports:
-      - 8000:8000
     extra_hosts:
       - cesium.tv:192.168.1.239
     volumes:
-      - ./docker/api/entrypoint.sh:/entrypoint.sh:ro
+      - ./docker/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app
       - media:/media
     environment:
       - DJANGO_DEBUG=true
-      - DJANGO_DB_HOST=db
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
       - DJANGO_SU_USERNAME=btimby
       - DJANGO_SU_EMAIL=btimby_indy@yahoo.com
       - DJANGO_SU_PASSWORD=password
-      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,cesium.tv,192.168.1.101
-      - DJANGO_MEDIA_ROOT=/media
+      - DJANGO_ALLOWED_HOSTS=api
       - AUTHLIB_INSECURE_TRANSPORT=true
       - DJANGO_ES_INSECURE_TRANSPORT=true
       - DJANGO_ES_HOST=es
@@ -40,17 +37,30 @@ services:
       # See .env.template for instructions.
       - .env
 
+  ui:
+    image: vue
+    build:
+      dockerfile: ./docker/Dockerfile
+      context: .
+      target: vue
+    depends_on:
+      - api
+    ports:
+      - 8000:8000
+    volumes:
+      - ./docker/entrypoint-vue.sh:/entrypoint.sh:ro
+      - ./ui:/app:ro
+
   beat:
-    image: cesium/api
+    image: cesium
     command: beat
     depends_on:
       - db
       - redis
     volumes:
-      - ./docker/api/entrypoint.sh:/entrypoint.sh:ro
+      - ./docker/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app:ro
     environment:
-      - DJANGO_DB_HOST=db
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
       - DJANGO_ES_INSECURE_TRANSPORT=true
@@ -61,7 +71,7 @@ services:
       - .env
 
   celery:
-    image: cesium/api
+    image: cesium
     command: celery
     depends_on:
       - db
@@ -70,11 +80,9 @@ services:
     extra_hosts:
       - cesium.tv:192.168.1.239
     volumes:
-      - ./docker/api/entrypoint.sh:/entrypoint.sh:ro
+      - ./docker/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app:ro
-      - ./vidsrc/vidsrc:/usr/local/lib/python3.10/site-packages/vidsrc:ro
     environment:
-      - DJANGO_DB_HOST=db
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
       - DJANGO_ES_INSECURE_TRANSPORT=true
@@ -83,6 +91,14 @@ services:
     env_file:
       # See .env.template for instructions.
       - .env
+
+  flower:
+    image: mher/flower
+    environment:
+      - FLOWER_PORT=8888
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    ports:
+      - "8888:8888"
 
   es:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.4.3-amd64

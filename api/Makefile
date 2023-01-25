@@ -15,7 +15,7 @@ lint:
 
 .PHONY: migrations
 migrations:
-	${DOCKER_COMPOSE} run -v ${CWD}:/app api python3 manage.py makemigrations rest
+	${DOCKER_COMPOSE} run --user root -v ${CWD}:/app api python3 manage.py makemigrations rest
 	sudo chown -R ${USER}:${USER} rest/migrations/
 
 

@@ -34,7 +34,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-8cbj*@yl)w6(=y%yksh_g1+*3maxm)tp8g7&g%gejj^v)+vi2h'
+SECRET_KEY = get_from_env_or_file(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-8cbj*@yl)w6(=y%yksh_g1+*3maxm)tp8g7&g%gejj^v)+vi2h')
 
 TEST = 'test' in sys.argv
 
@@ -67,7 +69,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'colorfield',
     'haystack',
-    'pgcrypto',
+    'nacl_encrypted_fields',
     'rest',
     'celery_haystack',
 ]
@@ -132,9 +134,8 @@ TEMPLATES = [
 WSGI_APPLICATION = 'api.wsgi.application'
 
 
-PUBLIC_PGP_KEY_PATH = get_from_env_or_file('PUBLIC_PGP_KEY_PATH')
-PRIVATE_PGP_KEY_PATH = get_from_env_or_file('PRIVATE_PGP_KEY_PATH')
-
+NACL_FIELDS_KEY = get_from_env_or_file(
+    'DJANGO_NACL_FIELDS_KEY', b'GQ_3W_#y1sg5C^6BX^F%kQ4}r15U7Wgd8ZH|Ck<u')
 
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
@@ -148,8 +149,6 @@ DATABASES = {
         'NAME': os.getenv('DJANGO_DB_NAME', 'cesium'),
         'USER': os.getenv('DJANGO_DB_USER', 'user'),
         'PASSWORD': DJANGO_DB_PASSWORD,
-        'PUBLIC_PGP_KEY': PUBLIC_PGP_KEY_PATH,
-        'PRIVATE_PGP_KEY': PRIVATE_PGP_KEY_PATH,
     }
 }
 

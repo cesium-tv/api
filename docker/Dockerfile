@@ -1,19 +1,21 @@
-FROM python:3-slim-buster AS python
+FROM python:3-slim-buster AS django
 
 ARG BULMA_VERSION=0.9.4
 ARG BUEFY_VERSION=0.9.21
 
-ENV DJANGO_DEBUG=false \
-    DJANGO_DB_HOST= \
-    DJANGO_DB_PORT=5432 \
-    DJANGO_DB_USER= \
-    DJANGO_DB_NAME=cesium \
-    DJANGO_DB_PASSWORD= \
-    DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,cesium.tv \
-    DJANGO_REDIS_HOST=redis \
-    DJANGO_REDIS_PORT=6379 \
-    DJANGO_SCSS_PATH=/var/scss/ \
-    UWSGI_STATIC=on
+ENV DJANGO_DEBUG=false
+ENV DJANGO_DB_HOST=db
+ENV DJANGO_DB_PORT=5432
+ENV DJANGO_DB_USER=cesium
+ENV DJANGO_DB_NAME=cesium
+ENV DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,cesium.tv
+ENV DJANGO_REDIS_HOST=redis
+ENV DJANGO_REDIS_PORT=6379
+ENV DJANGO_SCSS_PATH=/var/scss/
+ENV DJANGO_MEDIA_ROOT=/app/static/
+ENV UWSGI_STATIC=on
+ENV PUBLIC_PGP_KEY_FILE=/var/lib/keys/public.pem
+ENV PRIVATE_PGP_KEY_FILE=/var/lib/keys/private.pem
 
 ADD ./api /app
 
@@ -36,17 +38,44 @@ RUN apt update && \
     wget https://raw.githubusercontent.com/eficode/wait-for/master/wait-for -O /wait-for && \
     pip3 install pipenv && \
     pipenv install --system --dev && \
-    pyppeteer-install && \
-    apt remove -y git wget && \
+    apt remove -y git && \
     apt autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
 RUN find ${DJANGO_SCSS_PATH}
 RUN chmod +x /wait-for
-ADD ./docker/api/entrypoint.sh /entrypoint.sh
+ADD ./docker/entrypoint-django.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-RUN usermod -s /bin/sh nobody
+RUN mkdir -p /home/nobody
+RUN chown nobody:nogroup /home/nobody
+RUN usermod -s /bin/sh -d /home/nobody nobody
 
-RUN python3 manage.py collectstatic --noinput
+RUN pyppeteer-install
 
 ENTRYPOINT [ "/entrypoint.sh" ]
+
+
+FROM node:19-buster-slim AS vue
+
+ENV NODE_OPTIONS=--openssl-legacy-provider
+
+ADD ./ui /app
+ADD ./docker/entrypoint-vue.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+WORKDIR /app
+RUN npm i --include=dev
+
+ENTRYPOINT [ "/entrypoint.sh" ]
+
+
+FROM vue as vue-build
+
+RUN npm run build
+
+
+FROM django AS prod
+
+RUN python3 manage.py collectstatic --noinput
+COPY --from=vue-build /app/dist/* ${DJANGO_MEDIA_ROOT}
+
+USER nobody

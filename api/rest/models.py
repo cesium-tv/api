@@ -4,6 +4,7 @@ import uuid
 import string
 import random
 import json
+import time
 from os.path import splitext
 from datetime import timedelta
 
@@ -12,6 +13,7 @@ from csscompressor import compress
 
 from django import forms
 from django.db import models
+from django.db.models import Q, F
 from django.db.transaction import atomic
 from django.core.validators import FileExtensionValidator
 from django.core.files.base import ContentFile
@@ -20,16 +22,21 @@ from django.template.loader import get_template
 from django.contrib.postgres.fields import CITextField, ArrayField
 from django.contrib.sites.models import Site
 from django.utils.functional import cached_property
+from django.utils.encoding import force_str
 from django.contrib.auth.models import AbstractUser
 from django.contrib.auth.models import BaseUserManager
 from django.utils import timezone
 from django.conf import settings
+from django.db.models.fields.json import KeyTransform
 
-from pgcrypto.fields import TextPGPPublicKeyField
+from nacl_encrypted_fields import NaClFieldMixin
+from picklefield.fields import PickledObjectField
 from cache_memoize import cache_memoize
 from hashids import Hashids
 from colorfield.fields import ColorField
 from mail_templated import send_mail
+from bitfield import BitField
+from django_celery_beat.models import PeriodicTask
 
 from authlib.oauth2.rfc6749 import (
     ClientMixin, TokenMixin, AuthorizationCodeMixin,
@@ -173,29 +180,24 @@ class ChoiceArrayField(ArrayField):
         return super(ArrayField, self).formfield(**defaults)
 
 
-class JSONPGPPublicKeyField(TextPGPPublicKeyField):
-    def from_db_value(self, value, expression, connection):
-        if value is None:
-            return value
-        try:
-            return json.loads(value)
-        except json.JSONDecodeError:
-            return value
+class JSONNaClField(NaClFieldMixin, models.JSONField):
+    def from_db_value(self, value, expression, connection, *args, **kwargs):
+        if value is not None:
+            value = bytes(value)
+            if value != b'':
+                value = self._crypto_box.decrypt(value)
 
-    def get_prep_value(self, value):
-        if value is None:
-            return value
-        return json.dumps(value)
+            # JSONField does conversion from JSON to python object in this method.
+            # so we need to extend the NaCl mixin
+            value = force_str(value)
+            if isinstance(expression, KeyTransform) and not isinstance(value, str):
+                return value
+            try:
+                value = json.loads(value, cls=self.decoder)
+            except json.JSONDecodeError:
+                pass
 
-    def formfield(self, **kwargs):
-        return super().formfield(
-            **{
-                "form_class": forms.JSONField,
-                "encoder": self.encoder,
-                "decoder": self.decoder,
-                **kwargs,
-            }
-        )
+            return super(NaClFieldMixin, self).to_python(value)
 
 
 class ModuleAttributeField(models.CharField):
@@ -397,12 +399,19 @@ class MenuItem(models.Model):
 class Channel(HashidsModelMixin, models.Model):
     user = models.ForeignKey(
         User, related_name='channels', on_delete=models.CASCADE)
-    is_public = models.BooleanField(default=False)
+    task = models.ForeignKey(
+        PeriodicTask, null=True, blank=True, related_name='channel',
+        on_delete=models.CASCADE)
+    extern_id = models.CharField(max_length=128, unique=True)
+    options = BitField(flags=[
+        ('is_public', 'Publically available'),
+        ('universal', 'Videos are universal'),
+    ])
     url = models.URLField()
     name = models.CharField(max_length=64)
     title = models.CharField(max_length=128, null=True, blank=True)
-    description = models.TextField(null=True)
-    poster = models.ImageField()
+    description = models.TextField(null=True, blank=True)
+    poster = models.ImageField(null=True, blank=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -410,10 +419,6 @@ class Channel(HashidsModelMixin, models.Model):
 
     def __str__(self):
         return self.name
-
-    @property
-    def CrawlerClass(self):
-        return self._meta.get_field('crawler').get_klass(self.crawler)
 
     def update(self, **kwargs):
         Channel.objects.filter(id=self.id).update(**kwargs)
@@ -433,6 +438,8 @@ class Tag(models.Model):
 
 class Video(HashidsModelMixin, models.Model):
     tags = models.ManyToManyField(Tag, related_name='tagged')
+    channel = models.ForeignKey(
+        Channel, related_name='videos', on_delete=models.CASCADE)
     extern_id = models.CharField(max_length=128, unique=True)
     title = models.CharField(max_length=256)
     description = models.TextField(null=True, blank=True)
@@ -460,35 +467,19 @@ class VideoMeta(models.Model):
     metadata = models.JSONField()
 
 
-class Episode(models.Model):
-    class Meta:
-        unique_together = [
-            ('video', 'channel'),
-        ]
-
-    video = models.ForeignKey(
-        Video, related_name='channels', on_delete=models.CASCADE)
-    channel = models.ForeignKey(
-        Channel, related_name='episodes', on_delete=models.CASCADE)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f'{self.channel}: {self.video}'
-
-
 class VideoSource(HashidsModelMixin, models.Model):
     class Meta:
         unique_together = [
-            ('video', 'width', 'height'),
+            # ('video', 'width', 'height'),
             ('video', 'url'),
         ]
 
     video = models.ForeignKey(
         Video, related_name='sources', on_delete=models.CASCADE)
+    extern_id = models.CharField(max_length=128, unique=True)
     width = models.PositiveSmallIntegerField()
     height = models.PositiveSmallIntegerField(null=True, blank=True)
-    fps = models.PositiveSmallIntegerField()
+    fps = models.PositiveSmallIntegerField(null=True, blank=True)
     size = models.PositiveBigIntegerField(null=True, blank=True)
     url = models.URLField()
     created = models.DateTimeField(auto_now_add=True)
@@ -518,15 +509,34 @@ class Subscription(HashidsModelMixin, models.Model):
         User, related_name='subscribed', on_delete=models.CASCADE)
     channel = models.ForeignKey(
         Channel, related_name='subscribers', on_delete=models.CASCADE)
-    # JSON of credentials used by self.channel.CrawlerClass.
-    auth_info = JSONPGPPublicKeyField()
+    # JSON of credentials used by videosrc crawler.
+    auth_info = JSONNaClField(null=True, blank=True)
+    crawl_state = PickledObjectField(null=True, blank=True)
+    options = BitField(flags=[
+        ('notify', 'Notify me of new videos'),
+    ])
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
-    objects = HashidsManager()
-
     def __str__(self):
         return f'{self.user}: {self.channel}'
+
+
+class SubscriptionVideo(models.Model):
+    class Meta:
+        unique_together = [
+            ('video', 'subscription'),
+        ]
+
+    video = models.ForeignKey(
+        Video, related_name='channels', on_delete=models.CASCADE)
+    subscription = models.ForeignKey(
+        Subscription, related_name='videos', on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'{self.channel}: {self.video}'
 
 
 class Play(models.Model):

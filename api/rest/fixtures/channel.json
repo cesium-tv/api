@@ -4,6 +4,7 @@
     "pk": 1,
     "fields": {
       "user": 1,
+      "extern_id": "25e754ef2848f307d81488467908db3a",
       "name": "Members Only: Timcast IRL",
       "url": "https://timcast.com/members-area/section/timcast-irl/",
       "created": "2022-09-01T20:09:12.922Z",

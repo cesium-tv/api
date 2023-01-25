@@ -30,8 +30,11 @@ django-elasticsearch-dsl = "*"
 django-haystack = {extras = ["elasticsearch"], version = "*"}
 django-elasticsearch-debug-toolbar = "*"
 celery-haystack-ng = "*"
-django-pgcrypto-fields = "*"
-videosrc = "*"
+videosrc = "==0.1.6"
+django-nacl-fields = {ref = "2742c15cbb66fe2c726cf887bd90e54678036aa7", git = "https://github.com/btimby/django-nacl-fields.git"}
+django-picklefield = "*"
+django-bitfield = "*"
+stripe = "*"
 
 [dev-packages]
 flake8 = "*"

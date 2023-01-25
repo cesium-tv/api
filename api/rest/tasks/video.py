@@ -1,97 +1,117 @@
 import os
+import asyncio
 import logging
+import time
+
 from pprint import pprint
 from itertools import repeat
+from dataclasses import asdict
+
+from celery import chain
+from celery.utils.log import get_task_logger
+from django.conf import settings
+from django.db import IntegrityError
+from videosrc import crawl_sync  # , auth_sync
+# from videosrc.errors import AuthenticationFailure
 
 from api.celery import task
-from django.conf import settings
-
-from rest.models import Publisher, Channel, Video, Tag, VideoSource
-import vidsrc
-
-
-LOGGER = logging.getLogger(__name__)
-LOGGER.addHandler(logging.NullHandler())
-SENTINAL = object()
+from rest.models import (
+    Subscription, Channel, Video, VideoMeta, Tag, VideoSource,
+    VideoSourceMeta, SubscriptionVideo,
+)
 
 
-def _get_variable(d, *keys):
-    final = keys[-1]
-    for key in keys[:-1]:
-        d = d[key]
-    var_name = d[final]
-    # Reads from env when: env[variable_name]
-    if var_name.startswith('env[') and var_name.endswith(']'):
-        d[final] = os.getenv(var_name[4:-1])
-    # Reads from settings when: settings[variable_name]
-    if var_name.startswith('settings[') and var_name.endswith(']'):
-        d[final] = getattr(settings, var_name[9:-1])
+LOGGER = get_task_logger(__name__)
 
 
-@task
-def import_channel(channel_id, depth=SENTINAL, limit=SENTINAL):
-    options, channel = {}, Channel.objects.get(pk=channel_id)
+@task(bind=True, max_retries=3)
+def crawl_subscription(self, subscription_id):
+    state = None
+    subscription = Subscription.objects.get(pk=subscription_id)
+    channel, videos = crawl_sync(
+        subscription.channel.url,
+        state=subscription.crawl_state,
+        credentials=subscription.auth_info
+    )
 
-    if channel.options:
-        options.update(channel.options)
-    if channel.publisher.options:
-        options.update(channel.publisher.options)
-    if depth is not SENTINAL:
-        options['depth'] = depth
-    if limit is not SENTINAL:
-        options['limit'] = limit
+    try:
+        for vinfo, state in videos:
+            defaults = asdict(vinfo)
+            tags = defaults.pop('tags')
+            sources = defaults.pop('sources')
+            original = defaults.pop('original')
+            video, _ = Video.objects.update_or_create(
+                extern_id=vinfo.extern_id,
+                channel=subscription.channel,
+                defaults=defaults)
+            SubscriptionVideo.objects.get_or_create(
+                video=video, subscription=subscription)
+            VideoMeta.objects.update_or_create(
+                video=video, defaults={'metadata': original})
+            for tag in tags:
+                video.tags.add(Tag.objects.get_or_create(name=tag)[0])
+            for sinfo in sources:
+                original = sinfo.pop('original')
+                video_source, _ = VideoSource.objects.update_or_create(
+                    extern_id=sinfo['extern_id'],
+                    video=video,
+                    defaults=sinfo,
+                )
+                VideoSourceMeta.objects.update_or_create(
+                    source=video_source,
+                    defaults={'metadata': original})
 
-    LOGGER.info('Importing channel')
-    LOGGER.info('name: %s', channel.name)
-    LOGGER.info('extern_id: %s', channel.extern_id)
-    LOGGER.info('extern_cursor: %s', channel.extern_cursor)
-    LOGGER.info('url: %s', channel.url)
-    LOGGER.info('options: %s', options)
+            subscription.crawl_state = state
+            subscription.save()
 
-    _get_variable(options, 'credentials', 'username')
-    _get_variable(options, 'credentials', 'password')
-
-    objects = channel.platform.CrawlerClass(
-        channel,
-        options,
-    ).crawl(channel.extern_cursor)
-
-    for obj, state in objects:
-        LOGGER.info('Saving video %s in channel %s', obj.extern_id, channel.name)
-        video, created = Video.objects.get_or_create(
-            channel=channel,
-            extern_id=obj.extern_id,
-            defaults={
-                'title': obj.title,
-                'poster': obj.poster,
-                'duration': obj.duration,
-                'original': obj.original,
-                'published': obj.published,
-            }
-        )
-        LOGGER.info('Adding tags %s to video', obj.tags)
-        video.tags.set([
-            Tag.objects.get_or_create(name=t)[0] for t in obj.tags
-        ])
-        for source in obj.sources:
-            LOGGER.info('Adding source %s to video', source.url)
-            VideoSource.objects.get_or_create(
-                video=video,
-                url=source.url,
-                width=source.width,
-                defaults={
-                    'height': source.height,
-                    'fps': source.fps,
-                    'size': source.size,
-                    'original': source.original,
-                }
-            )
-
-        LOGGER.info('Updating channel state to %s', state)
-        channel.update(extern_cursor=state)
+    except Exception as e:
+        LOGGER.exception(e)
+        self.retry(exc=e)
 
 
 @task
-def import_videos():
-    for channel in Channel.objects.all():
-        import_channel.delay(channel.id)
+def clone_subscription(subscription_id):
+    subscription = Subscription.objects.get(pk=subscription_id)
+    try:
+        login_sync(subscription.channel.url, **subscription.auth_info)
+
+    except AuthenticationFailure as e:
+        LOGGER.exception(e)
+        return
+
+    for video in subscription.channel.videos:
+        try:
+            SubscriptionVideo.objects.create(
+                subscription=subscription, video=video)
+
+        except IntgrityError:
+            LOGGER.debug('Video %i already ')
+            continue
+
+
+@task
+def update_channel(channel_id):
+    channel = Channel.objects.get(channel_id)
+    task = chain()
+    if channel.options.universal:
+        # Update owner subscription to fetch latest videos.
+        owner_id = Subscription.objects \
+            .get(channel=channel, user=channel.user) \
+            .values_list('pk', flat=True)[0]
+        task |= crawl_subscription.si(owner_id)
+
+        # Check auth info for all subscriptions and copy videos.
+        for subscription_id in Subscription.objects \
+            .filter(channel=channel) \
+            .exclude(user=channel.user) \
+            .values_list('pk', flag=True):
+            task |= clone_subscription.si(subscription_id)
+
+    else:
+        # Update all subscriptions using their unique auth.
+        for subscription_id in Subscription.objects \
+            .filter(channel=channel) \
+            .values_list('pk', flat=True):
+            task |= crawl_subscription.si(subscription_id)
+
+    task.delay()
