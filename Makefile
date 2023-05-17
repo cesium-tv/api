@@ -1,5 +1,5 @@
 DOCKER = docker
-DOCKER_COMPOSE = docker-compose -p cesium.tv
+DOCKER_COMPOSE = docker compose -p cesium-tv
 
 
 .PHONY: build
@@ -75,3 +75,13 @@ fixtures:
 .PHONY: image
 image:
 	${DOCKER} build . -f docker/Dockerfile
+
+
+.PHONY: shell
+shell:
+	${MAKE} -C api shell
+
+
+.PHONY: dbshell
+dbshell:
+	${MAKE} -C api dbshell

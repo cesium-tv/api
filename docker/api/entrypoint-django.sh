@@ -15,15 +15,11 @@ if [ "${CMD}" == "api" ]; then
         ARGS="${ARGS} --py-autoreload=1"
     fi
 
-    if [ ! -z "${UWSGI_STATIC}" ] && [ -z "${DJANGO_DEBUG}" ]; then
-        ARGS="${ARGS} --static-map /=/app/static/"
-    fi
-
     chown -R 65534:65534 ${DJANGO_MEDIA_ROOT}
 
     uwsgi --enable-threads --http-socket=${DJANGO_HOST}:${DJANGO_PORT} \
         --uid=65534 --gid=65534 --manage-script-name \
-        --static-map /media=${DJANGO_MEDIA_ROOT} --static-gzip-all \
+        --static-map /=/app/static --static-gzip-all --static-index=index.html \
         --mount /=api.wsgi:application ${ARGS}
 
 elif [ "${CMD}" == "migrate" ]; then

@@ -5,6 +5,7 @@ from rest_framework import routers
 from rest.views import (
     theme_js, theme_css, favicon, UserViewSet, ChannelViewSet, VideoViewSet,
     OAuth2TokenViewSet, OAuthAuthCodeView, OAuthTokenView, OAuthDeviceCodeView,
+    OAuthDeviceCodeVerifyView,
 )
 
 
@@ -18,6 +19,11 @@ urlpatterns = [
     path('brand/theme.css', theme_css),
     path('brand/theme.js', theme_js),
     path('brand/favicon.ico', favicon),
+    path(
+        'device/verify/',
+        OAuthDeviceCodeVerifyView.as_view(),
+        name='oauth_device_code_verify_view'
+    ),
     path(
         r'oauth2/authorize/',
         OAuthAuthCodeView.as_view(),

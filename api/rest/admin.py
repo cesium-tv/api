@@ -16,7 +16,8 @@ from bitfield.forms import BitFieldCheckboxSelectMultiple
 
 from rest.models import (
     User, Channel, Video, VideoSource, Tag, Subscription, SiteOption,
-    MenuItem, Brand, OAuth2Client, SubscriptionVideo,
+    MenuItem, Brand, OAuth2Client, SubscriptionVideo, StripeAccount,
+    Package,
 )
 
 
@@ -76,9 +77,14 @@ class SubscriptionInline(admin.TabularInline):
     model = Subscription
 
 
+class StripeAccountInline(admin.TabularInline):
+    model = StripeAccount
+    fields = ('account_id', )
+
+
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('site',) + BaseUserAdmin.list_display
+    list_display = BaseUserAdmin.list_display + ('site',)
     fieldsets = (
         (None, {"fields": ("site", "username", "password")}),
         (_("Personal info"), {"fields": ("first_name", "last_name", "email", "is_confirmed")}),
@@ -96,7 +102,20 @@ class UserAdmin(BaseUserAdmin):
         ),
         (_("Important dates"), {"fields": ("last_login", "date_joined")}),
     )
+    inlines = (SubscriptionInline, StripeAccountInline, )
+
+
+@admin.register(Package)
+class PackageAdmin(admin.ModelAdmin):
+    list_display = ('name', 'user', )
+    formfield_overrides = {
+            BitField: {'widget': BitFieldCheckboxSelectMultiple},
+    }
     inlines = (SubscriptionInline, )
+
+
+class PackageInline(admin.TabularInline):
+    model = Package
 
 
 class MenuItemInline(admin.TabularInline):
@@ -120,6 +139,7 @@ class SiteOptionAdmin(admin.ModelAdmin):
 
 @reregister(Site)
 class SiteAdmin(BaseSiteAdmin):
+    list_display = ('name', 'domain')
     inlines = (SiteOptionInline, )
 
 
@@ -129,9 +149,7 @@ class ChannelInline(admin.TabularInline):
 
 @admin.register(Channel)
 class ChannelAdmin(admin.ModelAdmin):
-    list_display = ("user", "name", "video_count", "subscriber_count", "url")
-    # list_filter = ('publisher', )
-    inlines = (SubscriptionInline, )
+    list_display = ("name", "user", "video_count", "url", 'created', 'updated')
     formfield_overrides = {
             BitField: {'widget': BitFieldCheckboxSelectMultiple},
     }
@@ -139,14 +157,10 @@ class ChannelAdmin(admin.ModelAdmin):
     def video_count(self, obj):
         return obj.video_count
 
-    def subscriber_count(self, obj):
-        return obj.subscriber_count
-
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         queryset = queryset.annotate(
-            video_count=Count("episodes"),
-            subscriber_count=Count("subscribers")
+            video_count=Count("videos"),
         )
         return queryset
 
@@ -165,6 +179,7 @@ class VideoAdmin(admin.ModelAdmin):
     list_filter = ("channel", )
     inlines = (VideoSourceInline, SubscriptionVideoInline)
     ordering = ('-published',)
+    readonly_fields = ('uid', )
 
     def source_count(self, obj):
         return obj.source_count
@@ -177,7 +192,7 @@ class VideoAdmin(admin.ModelAdmin):
 
 @admin.register(VideoSource)
 class VideoSourceAdmin(admin.ModelAdmin):
-    list_display = ("dimension", "video", "url")
+    list_display = ("dimension", "video", "url", 'created', 'updated')
 
 
 @admin.register(Tag)
@@ -187,6 +202,7 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
+    list_display = ('name', 'user', 'scheme', 'created', 'updated')
     readonly_fields = ('theme_css', )
 
 

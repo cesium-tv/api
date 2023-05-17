@@ -1,5 +1,5 @@
 DOCKER = docker
-DOCKER_COMPOSE = docker-compose -p cesium.tv
+DOCKER_COMPOSE = docker compose -p cesium-tv
 CWD = ${shell pwd}
 
 
@@ -38,13 +38,18 @@ resetmigrations:
 
 .PHONY: fixtures
 fixtures:
-	${DOCKER_COMPOSE} run api python3 manage.py loaddata --app rest site user brand siteoption oauth2client channel
+	${DOCKER_COMPOSE} run api python3 manage.py loaddata --app rest site brand siteoption oauth2client channel package subscription
 	${DOCKER_COMPOSE} run api python3 manage.py collectmedia --noinput
 
 
 .PHONY: shell
 shell:
 	${DOCKER_COMPOSE} run api python3 manage.py shell
+
+
+.PHONY: dbshell
+dbshell:
+	${DOCKER_COMPOSE} run api python3 manage.py dbshell
 
 
 .PHONY: clean

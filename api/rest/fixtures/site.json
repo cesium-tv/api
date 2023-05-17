@@ -1,14 +1,6 @@
 [
   {
     "model": "sites.site",
-    "pk": 1,
-    "fields": {
-      "domain": "cesium.tv",
-      "name": "cesium.tv"
-    }
-  },
-  {
-    "model": "sites.site",
     "pk": 2,
     "fields": {
       "domain": "timcast.tv",

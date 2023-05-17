@@ -45,7 +45,7 @@ DEBUG = os.getenv('DJANGO_DEBUG', None) == 'true' and not TEST
 
 ALLOWED_HOSTS = [
     s.strip() for s in os.getenv(
-        'DJANGO_ALLOWED_HOSTS', '.cesium.tv').split(',')
+        'DJANGO_ALLOWED_HOSTS', 'localhost,cesium.tv,.cesium.tv').split(',')
 ]
 
 
@@ -213,6 +213,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'rest.User'
 SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 
+CSRF_COOKIE_DOMAIN = 'cesium.tv'
+CSRF_TRUSTED_ORIGINS = ['http://*.cesium.tv:8000']
+CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SECURE = not DEBUG
 
 CELERY_BROKER_URL = os.environ.get(
     'CELERY_BROKER_URL', f'redis://{REDIS_HOST}:{REDIS_PORT}/0')
@@ -291,3 +297,7 @@ HAYSTACK_CONNECTIONS = {
     },
 }
 HAYSTACK_SIGNAL_PROCESSOR = 'celery_haystack.signals.CelerySignalProcessor'
+
+STRIPE_CLIENT_ID = os.getenv('DJANGO_STRIPE_CLIENT_ID')
+STRIPE_PUBLISHABLE_KEY = os.getenv('DJANGO_STRIPE_PUBLISHABLE_KEY')
+STRIPE_PRIVATE_KEY = os.getenv('DJANGO_STRIPE_PRIVATE_KEY')

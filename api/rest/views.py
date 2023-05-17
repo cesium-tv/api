@@ -100,8 +100,8 @@ class UserViewSet(ModelViewSet):
 
     def get_queryset(self):
         queryset = self.queryset \
-            .filter(pk=self.request.user.id) \
-            .filter(publisher__sites__in=[self.request.site])
+            .filter(pk=self.request.user.id) #\
+            #.filter(publisher__sites__in=[self.request.site])
         return queryset
 
     def perform_create(self, serializer):
@@ -146,12 +146,14 @@ class ChannelViewSet(ModelViewSet):
     lookup_field = 'uid'
 
     def get_queryset(self):
+        # NOTE: we select all channels that relate to a package that the user
+        # subscribes to.
         queryset = Channel.objects \
             .annotate(
                 num_videos=Count('videos'),
-                num_subscribers=Count('subscribers'),
+                num_subscribers=Count('packages__subscribers'),
             ) \
-            .filter(publisher__sites__in=[self.request.site])
+            .filter(packages__subscribers__user__in=[self.request.user])
         return queryset
 
 
@@ -163,8 +165,8 @@ class VideoViewSet(ModelViewSet):
     def get_queryset(self):
         queryset = Video.objects \
             .prefetch_related('sources') \
-            .order_by('-published') \
-            .filter(channel__publisher__sites__in=[self.request.site])
+            .order_by('-published') #\
+            #.filter(channel__publisher__sites__in=[self.request.site])
 
         user_id = getattr(self.request.user, 'id', None)
         if user_id:
@@ -233,7 +235,11 @@ class OAuthDeviceCodeVerifyView(APIView):
         # This view should explain to the user that entering the code
         # and approving the request will result in the TV having access
         # to their account.
-        user_code = request.query_params['user_code']
+        try:
+            user_code = request.query_params['user_code']
+        except KeyError:
+            raise Http404()
+
         client = get_object_or_404(OAuth2Client, device_codes__user_code=user_code)
         serializer = OAuth2ClientSerializer(client)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -245,7 +251,7 @@ class OAuthDeviceCodeVerifyView(APIView):
         code = OAuth2DeviceCode.objects.get(
             user_code=request.query_params['user_code'])
         code.user = request.user
-        code.allowed = request.data.get('confirm') == 'true'
+        code.allowed = request.data.get('confirm') in (True, 'true')
         code.save()
         return Response('', status=status.HTTP_201_CREATED)
 

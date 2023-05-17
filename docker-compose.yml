@@ -8,17 +8,21 @@ services:
   api:
     image: cesium
     build:
-      dockerfile: ./docker/Dockerfile
+      dockerfile: ./docker/api/Dockerfile
       target: django
       context: .
     depends_on:
       - db
       - redis
       - es
-    extra_hosts:
-      - cesium.tv:192.168.1.239
+    ports:
+      - 8001:8000
+    networks:
+      default:
+        aliases:
+          - cesium.tv
     volumes:
-      - ./docker/entrypoint-django.sh:/entrypoint.sh:ro
+      - ./docker/api/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app
       - media:/media
     environment:
@@ -28,11 +32,12 @@ services:
       - DJANGO_SU_USERNAME=btimby
       - DJANGO_SU_EMAIL=btimby_indy@yahoo.com
       - DJANGO_SU_PASSWORD=password
-      - DJANGO_ALLOWED_HOSTS=api
+      - DJANGO_ALLOWED_HOSTS=.cesium.tv,localhost,api
       - AUTHLIB_INSECURE_TRANSPORT=true
       - DJANGO_ES_INSECURE_TRANSPORT=true
       - DJANGO_ES_HOST=es
       - DJANGO_ES_PORT=9200
+      - VIDEOSRC_PROXY=proxy:proxy@squid:3128
     env_file:
       # See .env.template for instructions.
       - .env
@@ -40,7 +45,7 @@ services:
   ui:
     image: vue
     build:
-      dockerfile: ./docker/Dockerfile
+      dockerfile: ./docker/api/Dockerfile
       context: .
       target: vue
     depends_on:
@@ -48,8 +53,29 @@ services:
     ports:
       - 8000:8000
     volumes:
-      - ./docker/entrypoint-vue.sh:/entrypoint.sh:ro
+      - ./docker/api/entrypoint-vue.sh:/entrypoint.sh:ro
       - ./ui:/app:ro
+
+  squid:
+    image: squid
+    build:
+      dockerfile: ./docker/squid/Dockerfile
+      context: .
+    ports:
+      - 3128:3128
+    environment:
+      - USERNAME=proxy
+      - PASSWORD=proxy
+    volumes:
+      - ./docker/squid/entrypoint.sh:/entrypoint.sh:ro
+      - ./docker/squid/squid.conf:/etc/squid/squid.conf:ro
+
+  embed:
+    image: nginx:alpine
+    volumes:
+      - ./embed/:/usr/share/nginx/html/:ro
+    ports:
+      - 8080:80
 
   beat:
     image: cesium
@@ -58,7 +84,7 @@ services:
       - db
       - redis
     volumes:
-      - ./docker/entrypoint-django.sh:/entrypoint.sh:ro
+      - ./docker/api/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app:ro
     environment:
       - DJANGO_DB_USER=user
@@ -77,10 +103,11 @@ services:
       - db
       - redis
       - es
+      - squid
     extra_hosts:
       - cesium.tv:192.168.1.239
     volumes:
-      - ./docker/entrypoint-django.sh:/entrypoint.sh:ro
+      - ./docker/api/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app:ro
     environment:
       - DJANGO_DB_USER=user
@@ -88,6 +115,7 @@ services:
       - DJANGO_ES_INSECURE_TRANSPORT=true
       - DJANGO_ES_HOST=es
       - DJANGO_ES_PORT=9200
+      - VIDEOSRC_PROXY=proxy:proxy@squid:3128
     env_file:
       # See .env.template for instructions.
       - .env

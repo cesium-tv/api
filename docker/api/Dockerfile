@@ -12,8 +12,7 @@ ENV DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,cesium.tv
 ENV DJANGO_REDIS_HOST=redis
 ENV DJANGO_REDIS_PORT=6379
 ENV DJANGO_SCSS_PATH=/var/scss/
-ENV DJANGO_MEDIA_ROOT=/app/static/
-ENV UWSGI_STATIC=on
+ENV DJANGO_MEDIA_ROOT=/app/static/media/
 ENV PUBLIC_PGP_KEY_FILE=/var/lib/keys/public.pem
 ENV PRIVATE_PGP_KEY_FILE=/var/lib/keys/private.pem
 
@@ -44,7 +43,7 @@ RUN apt update && \
 
 RUN find ${DJANGO_SCSS_PATH}
 RUN chmod +x /wait-for
-ADD ./docker/entrypoint-django.sh /entrypoint.sh
+ADD ./docker/api/entrypoint-django.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 RUN mkdir -p /home/nobody
 RUN chown nobody:nogroup /home/nobody
@@ -60,7 +59,7 @@ FROM node:19-buster-slim AS vue
 ENV NODE_OPTIONS=--openssl-legacy-provider
 
 ADD ./ui /app
-ADD ./docker/entrypoint-vue.sh /entrypoint.sh
+ADD ./docker/api/entrypoint-vue.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 WORKDIR /app
 RUN npm i --include=dev
@@ -76,6 +75,6 @@ RUN npm run build
 FROM django AS prod
 
 RUN python3 manage.py collectstatic --noinput
-COPY --from=vue-build /app/dist/* ${DJANGO_MEDIA_ROOT}
+COPY --from=vue-build /app/dist/* /app/static/
 
 USER nobody

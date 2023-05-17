@@ -3,6 +3,7 @@
     "model": "rest.brand",
     "pk": 1,
     "fields": {
+      "user_id": 1,
       "name": "Cesium",
       "favicon": "327b5a08-6ebe-4398-9e9a-c85392f17c5a.ico",
       "logo": "4097d4f6-b4c3-4187-9451-86cc31df5c12.png",
@@ -15,6 +16,7 @@
     "model": "rest.brand",
     "pk": 2,
     "fields": {
+      "user_id": 1,
       "name": "Timcast",
       "favicon": "b337580d-e8a6-4376-bcd0-d307281402a7.png",
       "logo": "cb48af24-2592-4cd9-b232-4d4ca4a3e258.svg",

@@ -112,6 +112,10 @@ def get_random_code():
     return ''.join(selected)
 
 
+def get_random_hour():
+    return random.randint(0, 23)
+
+
 class HashidsQuerySet(models.QuerySet):
     def get(self, *args, **kwargs):
         uid = kwargs.pop('uid', None)
@@ -314,7 +318,17 @@ class User(HashidsModelMixin, AbstractUser):
         return True
 
 
+class StripeAccount(models.Model):
+    user = models.OneToOneField(
+        User, related_name='stripe_account', on_delete=models.CASCADE)
+    account_id = models.CharField(max_length=255)
+    access_token = models.CharField(max_length=255)
+    refresh_token = models.CharField(max_length=255)
+
+
 class Brand(HashidsModelMixin, models.Model):
+    user = models.ForeignKey(
+        User, related_name='brands', on_delete=models.CASCADE)
     name = models.CharField(max_length=32)
     scheme = models.CharField(
         max_length=5, choices=SCHEME_NAMES, default='light')
@@ -396,22 +410,51 @@ class MenuItem(models.Model):
         default=0, help_text='Order of item in menu')
 
 
+class Package(models.Model):
+    user = models.ForeignKey(
+        User, related_name='packages', on_delete=models.CASCADE)
+    name = models.CharField(max_length=30)
+    price_ppv = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True)
+    price_month = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True)
+    price_year = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True)
+    price_lifetime = models.DecimalField(
+        max_digits=5, decimal_places=2, null=True, blank=True)
+    options = BitField(flags=[
+        ('ppv', 'Pay per view enabled'),
+        ('preview_1', 'Grant one free preview'),
+        ('preview_3', 'Grant three free previews'),
+        ('preview_5', 'Grant five free previews'),
+    ])
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+
 class Channel(HashidsModelMixin, models.Model):
     user = models.ForeignKey(
         User, related_name='channels', on_delete=models.CASCADE)
     task = models.ForeignKey(
         PeriodicTask, null=True, blank=True, related_name='channel',
         on_delete=models.CASCADE)
+    packages = models.ManyToManyField(Package, related_name='channels')
     extern_id = models.CharField(max_length=128, unique=True)
     options = BitField(flags=[
-        ('is_public', 'Publically available'),
-        ('universal', 'Videos are universal'),
+        ('pub', 'Public channel -- allow other users to subscribe'),
     ])
     url = models.URLField()
+    auth_params = JSONNaClField(null=True, blank=True)
     name = models.CharField(max_length=64)
     title = models.CharField(max_length=128, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     poster = models.ImageField(null=True, blank=True)
+    update_interval_hours = models.PositiveSmallIntegerField(default=24)
+    best_hour = models.PositiveSmallIntegerField(default=get_random_hour)
+    next_update = models.DateTimeField(default=timezone.now)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -437,7 +480,7 @@ class Tag(models.Model):
 
 
 class Video(HashidsModelMixin, models.Model):
-    tags = models.ManyToManyField(Tag, related_name='tagged')
+    tags = models.ManyToManyField(Tag, related_name='tagged', blank=True)
     channel = models.ForeignKey(
         Channel, related_name='videos', on_delete=models.CASCADE)
     extern_id = models.CharField(max_length=128, unique=True)
@@ -452,6 +495,8 @@ class Video(HashidsModelMixin, models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
+    objects = HashidsManager()
+
     def __str__(self):
         return self.title
 
@@ -462,15 +507,16 @@ class Video(HashidsModelMixin, models.Model):
             src.save()
 
 
-class VideoMeta(models.Model):
-    video = models.OneToOneField(Video, on_delete=models.CASCADE)
+class VideoMeta(Video):
+    # We don't often need the orignal JSON data, it is kept here for archival
+    # purposes only in order to not bloat the base table.
     metadata = models.JSONField()
 
 
 class VideoSource(HashidsModelMixin, models.Model):
     class Meta:
         unique_together = [
-            # ('video', 'width', 'height'),
+            ('video', 'mime', 'width', 'height'),
             ('video', 'url'),
         ]
 
@@ -481,6 +527,7 @@ class VideoSource(HashidsModelMixin, models.Model):
     height = models.PositiveSmallIntegerField(null=True, blank=True)
     fps = models.PositiveSmallIntegerField(null=True, blank=True)
     size = models.PositiveBigIntegerField(null=True, blank=True)
+    mime = models.CharField(max_length=64, null=True, blank=True)
     url = models.URLField()
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
@@ -494,24 +541,24 @@ class VideoSource(HashidsModelMixin, models.Model):
         return f'{self.width}{height}'
 
 
-class VideoSourceMeta(models.Model):
-    source = models.OneToOneField(VideoSource, on_delete=models.CASCADE)
+class VideoSourceMeta(VideoSource):
+    # We don't often need the orignal JSON data, it is kept here for archival
+    # purposes only in order to not bloat the base table.
     metadata = models.JSONField()
 
 
 class Subscription(HashidsModelMixin, models.Model):
     class Meta:
         unique_together = [
-            ('user', 'channel'),
+            ('user', 'package'),
         ]
 
     user = models.ForeignKey(
         User, related_name='subscribed', on_delete=models.CASCADE)
-    channel = models.ForeignKey(
-        Channel, related_name='subscribers', on_delete=models.CASCADE)
-    # JSON of credentials used by videosrc crawler.
-    auth_info = JSONNaClField(null=True, blank=True)
-    crawl_state = PickledObjectField(null=True, blank=True)
+    package = models.ForeignKey(
+        Package, related_name='subscribers', on_delete=models.CASCADE)
+    active = models.BooleanField(default=True)
+    stripe_account_id = models.CharField(max_length=255, null=True, blank=True)
     options = BitField(flags=[
         ('notify', 'Notify me of new videos'),
     ])
