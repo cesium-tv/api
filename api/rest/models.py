@@ -276,6 +276,8 @@ class User(HashidsModelMixin, AbstractUser):
     is_confirmed = models.BooleanField(default=False)
     site = models.ForeignKey(
         Site, related_name='users', on_delete=models.CASCADE)
+    created = models.DateTimeField(default=timezone.now)
+    updated = models.DateTimeField(auto_now=True)
 
     objects = UserManager()
 
@@ -324,6 +326,8 @@ class StripeAccount(models.Model):
     account_id = models.CharField(max_length=255)
     access_token = models.CharField(max_length=255)
     refresh_token = models.CharField(max_length=255)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
 
 class Brand(HashidsModelMixin, models.Model):
@@ -408,6 +412,8 @@ class MenuItem(models.Model):
         help_text='Title of item in menu')
     sort = models.PositiveSmallIntegerField(
         default=0, help_text='Order of item in menu')
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
 
 class Package(models.Model):
@@ -443,11 +449,10 @@ class Channel(HashidsModelMixin, models.Model):
         on_delete=models.CASCADE)
     packages = models.ManyToManyField(Package, related_name='channels')
     extern_id = models.CharField(max_length=128, unique=True)
-    options = BitField(flags=[
-        ('pub', 'Public channel -- allow other users to subscribe'),
-    ])
+    options = BitField(flags=[])
     url = models.URLField()
     auth_params = JSONNaClField(null=True, blank=True)
+    public = models.BooleanField(default=False)
     name = models.CharField(max_length=64)
     title = models.CharField(max_length=128, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
@@ -467,8 +472,9 @@ class Channel(HashidsModelMixin, models.Model):
         Channel.objects.filter(id=self.id).update(**kwargs)
 
 
-class ChannelMeta(models.Model):
-    channel = models.OneToOneField(Channel, on_delete=models.CASCADE)
+class ChannelMeta(Channel):
+    # We don't often need the orignal JSON data, it is kept here for archival
+    # purposes only in order to not bloat the base table.
     metadata = models.JSONField()
 
 
@@ -566,7 +572,7 @@ class Subscription(HashidsModelMixin, models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f'{self.user}: {self.channel}'
+        return f'{self.user}: {self.package}'
 
 
 class SubscriptionVideo(models.Model):
@@ -603,7 +609,7 @@ class Play(models.Model):
     objects = models.Manager()
 
     def __str__(self):
-        return f'{self.user}: {self.video}'
+        return f'{self.user} played {self.video}'
 
 
 class Like(models.Model):
@@ -616,10 +622,36 @@ class Like(models.Model):
         User, related_name='liked', on_delete=models.CASCADE)
     video = models.ForeignKey(
         Video, related_name='likes', on_delete=models.CASCADE)
-    # +1 for like, -1 for dislike
-    like = models.SmallIntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        Dislike.objects.filter(user=self.user, video=self.video).delete()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.user} liked {self.video}'
+
+
+class Dislike(models.Model):
+    class Meta:
+        unique_together = [
+            ('user', 'video'),
+        ]
+
+    user = models.ForeignKey(
+        User, related_name='disliked', on_delete=models.CASCADE)
+    video = models.ForeignKey(
+        Video, related_name='dislikes', on_delete=models.CASCADE)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        Like.objects.filter(user=self.user, video=self.video).delete()
+        return super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.user} disliked {self.video}'
 
 
 # https://docs.authlib.org/en/latest/django/2/authorization-server.html
@@ -645,6 +677,8 @@ class OAuth2Client(HashidsModelMixin, models.Model, ClientMixin):
     token_endpoint_auth_method = models.CharField(
         choices=TOKEN_AUTH_METHODS, max_length=120, null=False,
         default='client_secret_post')
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     objects = HashidsManager()
 
@@ -690,8 +724,9 @@ class OAuth2Token(HashidsModelMixin, models.Model, TokenMixin):
     refresh_token = models.CharField(max_length=255, db_index=True, null=False)
     scope = ArrayField(models.CharField(max_length=24), null=True)
     revoked = models.BooleanField(default=False)
-    issued_at = models.DateTimeField(null=False, default=timezone.now)
     expires_in = models.IntegerField(null=False, default=0)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
 
     objects = HashidsManager()
 
@@ -705,7 +740,7 @@ class OAuth2Token(HashidsModelMixin, models.Model, TokenMixin):
         return self.expires_in
 
     def get_expires_at(self):
-        return self.issued_at + timedelta(seconds=self.expires_in)
+        return self.created + timedelta(seconds=self.expires_in)
 
 
 class OAuth2Code(HashidsModelMixin, models.Model, AuthorizationCodeMixin):

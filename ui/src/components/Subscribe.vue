@@ -4,18 +4,16 @@
       <v-flex sm12 md6 offset-md3>
         <v-card elevation="4" light tag="section">
           <v-card-title>
-            <v-layout align-center justify-space-between>
-              <h3 class="headline">
                 Subscribe
-              </h3>
               <v-flex>
                 <v-img :alt="theme.name" class="ml-3" contain height="48px" position="center right" :src="theme.logo"></v-img>
               </v-flex>
-            </v-layout>
           </v-card-title>
+          <v-card-subtitle>
+            Subscribe with your email and password
+          </v-card-subtitle>
           <v-divider></v-divider>
           <v-card-text>
-            <p>Subscribe with your email and password:</p>
             <v-form>
               <v-layout row wrap class="mt-6">
                 <v-flex xs12 class="px-3">
@@ -107,23 +105,18 @@
               >
                 <v-flex xs7 class="px-3">
                 </v-flex>
-                  <vue-simple-recaptcha/>
-              </v-layout>
-              <v-layout
-                row
-                wrap
-                class="mt-6"
-              >
-                <v-flex xs7 class="px-3">
-                </v-flex>
                   <stripe-element-card/>
               </v-layout>
             </v-form>
           </v-card-text>
           <v-divider></v-divider>
           <v-card-actions :class="{ 'pa-3': $vuetify.breakpoint.smAndUp }">
-            <v-btn color="info" flat>
-              Forgot password?
+            <v-btn
+              @click.cancel="onCancel"
+              color="warning" large
+            >
+              <v-icon left>cancel</v-icon>
+              Cancel
             </v-btn>
             <v-spacer></v-spacer>
             <v-btn
@@ -152,14 +145,12 @@
 
 <script>
 import { StripeElementCard } from '@vue-stripe/vue-stripe';
-import VueSimpleRecaptcha from "vue-simple-recaptcha";
 
 export default {
   name: 'Subscribe',
 
   components: {
     StripeElementCard,
-    VueSimpleRecaptcha,
   },
 
   data() {
@@ -192,6 +183,10 @@ export default {
   methods: {
     onSubscribe() {
       // TODO: submit form.
+    },
+
+    onCancel() {
+      history.back();
     },
   },
 }

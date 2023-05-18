@@ -20,7 +20,7 @@ urlpatterns = [
     path('brand/theme.js', theme_js),
     path('brand/favicon.ico', favicon),
     path(
-        'device/verify/',
+        'oauth2/device/verify/',
         OAuthDeviceCodeVerifyView.as_view(),
         name='oauth_device_code_verify_view'
     ),

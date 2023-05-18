@@ -17,7 +17,7 @@
     "pk": 2,
     "fields": {
       "user": 1,
-      "extern_id": "25e754ef2848f307d81488467908db3a",
+      "extern_id": "25e754ef2848f317d81488467908db3a",
       "name": "Daily Wire: Matt Walsh",
       "url": "https://twitter.com/MattWalshShow",
       "packages": [1],

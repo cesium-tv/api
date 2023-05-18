@@ -13,17 +13,19 @@
               </v-flex>
             </v-layout>
           </v-card-title>
+          <v-card-subtitle>
+            Login with your email and password
+          </v-card-subtitle>
           <v-divider></v-divider>
           <v-card-text>
-            <p>Login with your email and password:</p>
             <v-form>
               <v-layout row wrap class="mt-6">
                 <v-flex xs12 class="px-3">
                   <v-text-field
                     outline
-                    label="Email"
+                    label="Username"
                     type="text"
-                    v-model="form.email"
+                    v-model="form.username"
                   ></v-text-field>
                 </v-flex>
               </v-layout>
@@ -36,13 +38,6 @@
                     type="password"
                     v-model="form.password"
                   ></v-text-field>
-                </v-flex>
-              </v-layout>
-              <v-layout row wrap class="mt-6 pb-6">
-                <v-flex xs12 class="px-3">
-                  <vue-simple-recaptcha
-                    :sitekey="recaptchaApiKey"
-                  />
                 </v-flex>
               </v-layout>
             </v-form>
@@ -77,22 +72,19 @@
 </template>
 
 <script>
-import VueSimpleRecaptcha from "vue-simple-recaptcha";
-import { RECAPTCHA_API_KEY } from "@/config";
+import axios from 'axios';
 
 export default {
   name: 'Login',
 
   components: {
-    VueSimpleRecaptcha,
   },
 
   data() {
     return {
       theme: window.CesiumTheme,
-      recaptchaApiKey: RECAPTCHA_API_KEY,
       form: {
-        email: null,
+        username: null,
         password: null,
       },
     };
@@ -101,6 +93,12 @@ export default {
   methods: {
     onLogin() {
       // TODO: submit form.
+      const data = new URLSearchParams();
+      data.append('username', this.form.username);
+      data.append('password', this.form.password);
+      axios.post('/api/v1/users/login/', data).then(() => {
+        this.$router.push('/');
+      })
     },
   },
 }

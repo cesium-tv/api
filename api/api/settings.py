@@ -279,6 +279,12 @@ SITE_ID = 1
 
 AUTHLIB_OAUTH2_PROVIDER = {
     'refresh_token_generator': True,
+    'token_expires_in': {
+        'authorization_code': 604800,                       # 1 week
+        'refresh_token': 604800,                            # 1 week
+        'urn:ietf:params:oauth:grant-type:device_code': 0,  # indefinite
+        'password': 604800,                                 # 1 week
+    }
 }
 
 MEDIA_FIXTURE_FOLDERNAME='media'

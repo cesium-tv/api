@@ -35,10 +35,10 @@ from rest_framework.permissions import (
 from rest.permissions import CreateOrIsAuthenticated
 from rest.serializers import (
     UserSerializer, ChannelSerializer, VideoSerializer, OAuth2ClientSerializer,
-    OAuth2TokenSerializer,
+    OAuth2TokenSerializer, PlaySerializer, LikeSerializer, DislikeSerializer,
 )
 from rest.models import (
-    Video, Channel, Play, Like, SiteOption, Brand, OAuth2Token,
+    Video, Channel, Play, Like, Dislike, SiteOption, Brand, OAuth2Token,
     OAuth2DeviceCode, OAuth2Client,
 )
 from rest.oauth import SERVER
@@ -110,9 +110,15 @@ class UserViewSet(ModelViewSet):
 
     @action(detail=False, methods=['POST'], permission_classes=[AllowAny])
     def login(self, request):
-        email = request.data['email']
-        password = request.data['password']
-        user = authenticate(request, email=email, password=password)
+        try:
+            username = request.data['username']
+            password = request.data['password']
+
+        except KeyError as e:
+            return Response(
+                {'missing': e.args[0]}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = authenticate(request, username=username, password=password)
         if user is None:
             return Response('', status=status.HTTP_401_UNAUTHORIZED)
         login(request, user)
@@ -146,14 +152,18 @@ class ChannelViewSet(ModelViewSet):
     lookup_field = 'uid'
 
     def get_queryset(self):
-        # NOTE: we select all channels that relate to a package that the user
-        # subscribes to.
         queryset = Channel.objects \
             .annotate(
                 num_videos=Count('videos'),
                 num_subscribers=Count('packages__subscribers'),
-            ) \
-            .filter(packages__subscribers__user__in=[self.request.user])
+            )
+        if not self.request.user.is_authenticated:
+            queryset = queryset.filter(public=True)
+        else:
+            # NOTE: we select all channels that relate to a package that the
+            # user subscribes to.        
+            queryset = queryset.filter(
+                packages__subscribers__user__in=[self.request.user])
         return queryset
 
 
@@ -165,30 +175,30 @@ class VideoViewSet(ModelViewSet):
     def get_queryset(self):
         queryset = Video.objects \
             .prefetch_related('sources') \
-            .order_by('-published') #\
-            #.filter(channel__publisher__sites__in=[self.request.site])
+            .order_by('-published')
 
-        user_id = getattr(self.request.user, 'id', None)
-        if user_id:
+        if not self.request.user.is_authenticated:
+            queryset = queryset.filter(channel__public=True)
+
+        else:
             queryset = queryset.annotate(
                 played=Exists(
                     Play.objects.filter(
                         video_id=OuterRef('pk'),
-                        user_id=user_id)
+                        user=self.request.user)
                 ),
                 liked=Exists(
                     Like.objects.filter(
                         video_id=OuterRef('pk'),
-                        user_id=user_id,
-                        like=1)
+                        user=self.request.user)
                 ),
                 disliked=Exists(
-                    Like.objects.filter(
+                    Dislike.objects.filter(
                         video_id=OuterRef('pk'),
-                        user_id=user_id,
-                        like=-1)
+                        user=self.request.user)
                 ),
-            )
+            ).filter(
+                channel__packages__subscribers__user__in=[self.request.user])
 
         channel_uid = self.request.query_params.get('channel')
         if channel_uid is not None:
@@ -199,6 +209,30 @@ class VideoViewSet(ModelViewSet):
             queryset = queryset.filter(channel=channel)
 
         return queryset
+
+    @action(detail=True, methods=['POST'], permission_classes=[IsAuthenticated])
+    def like(self, request, uid):
+        like, created = Like.objects.get_or_create(
+            user=request.user, video=video)
+        serializer = LikeSerializer(like, many=False)
+        status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return Response(serializer.data, status=status)
+
+    @action(detail=True, methods=['POST'], permission_classes=[IsAuthenticated])
+    def dislike(self, request, uid):
+        dislike, created = Dislike.objects.get_or_create(
+            user=request.user, video=video)
+        serializer = DislikeSerializer(dislike, many=False)
+        status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return Response(serializer.data, status=status)
+
+    @action(detail=True, methods=['POST'], permission_classes=[IsAuthenticated])
+    def played(self, request, uid):
+        play, created = Play.objects.get_or_create(
+            user=request.user, video=video)
+        serializer = PlaySerializer(play, many=False)
+        status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
+        return Response(serializer.data, status=status)
 
 
 class OAuthAuthCodeView(APIView):
@@ -237,8 +271,9 @@ class OAuthDeviceCodeVerifyView(APIView):
         # to their account.
         try:
             user_code = request.query_params['user_code']
-        except KeyError:
-            raise Http404()
+        except KeyError as e:
+            return Response(
+                {'missing': e.args[0]}, status=status.HTTP_400_BAD_REQUEST)
 
         client = get_object_or_404(OAuth2Client, device_codes__user_code=user_code)
         serializer = OAuth2ClientSerializer(client)
@@ -247,13 +282,26 @@ class OAuthDeviceCodeVerifyView(APIView):
     def post(self, request):
         # Handle the user confirming or denying access. The polling device will
         # receive the result of this operation on it's next poll.
-        # TODO: handle KeyError with 400 reply.
-        code = OAuth2DeviceCode.objects.get(
-            user_code=request.query_params['user_code'])
+        try:
+            user_code=request.query_params['user_code']
+
+        except KeyError as e:
+            return Response(
+                {'missing': e.args[0]}, status=status.HTTP_400_BAD_REQUEST)
+
+        allowed = request.data.get('confirm') in (True, 'true')
+        code = get_object_or_404(OAuth2DeviceCode, user_code=user_code)
         code.user = request.user
-        code.allowed = request.data.get('confirm') in (True, 'true')
+        code.allowed = allowed
         code.save()
-        return Response('', status=status.HTTP_201_CREATED)
+        if allowed:
+            response = Response({'message': 'OK'}, status=status.HTTP_200_OK)
+        else:
+            response = Response(
+                {'message': 'must check confirm'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return response
 
 
 class OAuthTokenView(APIView):

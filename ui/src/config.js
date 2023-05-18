@@ -1,4 +1,4 @@
-const RECAPTCHA_API_KEY = '6LcBahkmAAAAAPJjlLWG8PueceBnuv0BL6b2sOiJ';
+const RECAPTCHA_API_KEY = '6LcBahkmAAAAACMLxQbLjpkyomyhcx4ms7S_bzKi';
 
 export {
     RECAPTCHA_API_KEY,
