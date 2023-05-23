@@ -18,7 +18,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
 from django.db import transaction
-from django.db.models import Exists, Count, OuterRef
+from django.db.models import Exists, Count, OuterRef, Subquery, Func, F
 from django.utils import timezone
 
 from rest_framework import status, permissions
@@ -39,7 +39,7 @@ from rest.serializers import (
 )
 from rest.models import (
     Video, Channel, Play, Like, Dislike, SiteOption, Brand, OAuth2Token,
-    OAuth2DeviceCode, OAuth2Client,
+    OAuth2DeviceCode, OAuth2Client, Subscription,
 )
 from rest.oauth import SERVER
 
@@ -152,18 +152,20 @@ class ChannelViewSet(ModelViewSet):
     lookup_field = 'uid'
 
     def get_queryset(self):
-        queryset = Channel.objects \
-            .annotate(
-                num_videos=Count('videos'),
-                num_subscribers=Count('packages__subscribers'),
-            )
+        queryset = Channel.objects.all()
+
         if not self.request.user.is_authenticated:
             queryset = queryset.filter(public=True)
+
         else:
             # NOTE: we select all channels that relate to a package that the
             # user subscribes to.        
-            queryset = queryset.filter(
-                packages__subscribers__user__in=[self.request.user])
+            subbed = Subscription.objects.filter(
+                package__channels__id=OuterRef('id'),
+                user=self.request.user
+            )
+
+            queryset = queryset.filter(Exists(subbed))
         return queryset
 
 
@@ -181,6 +183,11 @@ class VideoViewSet(ModelViewSet):
             queryset = queryset.filter(channel__public=True)
 
         else:
+            subbed = Subscription.objects.filter(
+                package__channels__id=OuterRef('channel_id'),
+                user=self.request.user
+            )
+
             queryset = queryset.annotate(
                 played=Exists(
                     Play.objects.filter(
@@ -197,8 +204,7 @@ class VideoViewSet(ModelViewSet):
                         video_id=OuterRef('pk'),
                         user=self.request.user)
                 ),
-            ).filter(
-                channel__packages__subscribers__user__in=[self.request.user])
+            ).filter(Exists(subbed))
 
         channel_uid = self.request.query_params.get('channel')
         if channel_uid is not None:

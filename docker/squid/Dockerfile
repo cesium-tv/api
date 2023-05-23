@@ -14,7 +14,7 @@ RUN mkdir -p /var/run/squid  && \
     chown squid:squid /var/run/squid && \
     chown squid:squid /var/log/squid
 
-EXPOSE 3128
+# EXPOSE 3128
 
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 CMD [ "https_proxy=\${USERNAME}:\${PASSWORD}@127.0.0.1:3128 http_proxy=\${USERNAME}:\${PASSWORD}@127.0.0.1:3128 && wget -q -Y on  -O - http://httpbin.org/ip || exit 1" ]

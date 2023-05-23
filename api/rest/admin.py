@@ -16,8 +16,7 @@ from bitfield.forms import BitFieldCheckboxSelectMultiple
 
 from rest.models import (
     User, Channel, Video, VideoSource, Tag, Subscription, SiteOption,
-    MenuItem, Brand, OAuth2Client, SubscriptionVideo, StripeAccount,
-    Package,
+    MenuItem, Brand, OAuth2Client, StripeAccount, Package,
 )
 
 
@@ -149,7 +148,9 @@ class ChannelInline(admin.TabularInline):
 
 @admin.register(Channel)
 class ChannelAdmin(admin.ModelAdmin):
-    list_display = ("name", "user", "video_count", "url", 'created', 'updated')
+    list_display = (
+        "name", "user", "video_count", "url", 'created', 'updated',
+    )
     formfield_overrides = {
             BitField: {'widget': BitFieldCheckboxSelectMultiple},
     }
@@ -169,15 +170,11 @@ class VideoSourceInline(admin.TabularInline):
     model = VideoSource
 
 
-class SubscriptionVideoInline(admin.TabularInline):
-    model = SubscriptionVideo
-
-
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
     list_display = ("title", "source_count", "poster", "published")
     list_filter = ("channel", )
-    inlines = (VideoSourceInline, SubscriptionVideoInline)
+    inlines = (VideoSourceInline, )
     ordering = ('-published',)
     readonly_fields = ('uid', )
 

@@ -232,12 +232,6 @@ CELERY_COMMAND = ('celery', '-A', 'api', 'worker', '-l', 'info')
 CELERY_AUTORELOAD = DEBUG
 CELERY_ALWAYS_EAGER = TEST
 CELERY_TIMEZONE = TIME_ZONE
-CELERY_BEAT_SCHEDULE = {
-    # 'rest.tasks.video.import_videos': {
-    #     'task': 'rest.tasks.video.import_videos',
-    #     'schedule': crontab(minute=0),
-    # }
-}
 
 
 REST_FRAMEWORK = {

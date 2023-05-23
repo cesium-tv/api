@@ -19,7 +19,7 @@ from django.core.validators import FileExtensionValidator
 from django.core.files.base import ContentFile
 from django.template import Context
 from django.template.loader import get_template
-from django.contrib.postgres.fields import CITextField, ArrayField
+from django.contrib.postgres.fields import ArrayField
 from django.contrib.sites.models import Site
 from django.utils.functional import cached_property
 from django.utils.encoding import force_str
@@ -29,7 +29,7 @@ from django.utils import timezone
 from django.conf import settings
 from django.db.models.fields.json import KeyTransform
 
-from nacl_encrypted_fields import NaClFieldMixin
+from nacl_encrypted_fields.fields import NaClJSONField
 from picklefield.fields import PickledObjectField
 from cache_memoize import cache_memoize
 from hashids import Hashids
@@ -182,26 +182,6 @@ class ChoiceArrayField(ArrayField):
         # care for it.
         # pylint:disable=bad-super-call
         return super(ArrayField, self).formfield(**defaults)
-
-
-class JSONNaClField(NaClFieldMixin, models.JSONField):
-    def from_db_value(self, value, expression, connection, *args, **kwargs):
-        if value is not None:
-            value = bytes(value)
-            if value != b'':
-                value = self._crypto_box.decrypt(value)
-
-            # JSONField does conversion from JSON to python object in this method.
-            # so we need to extend the NaCl mixin
-            value = force_str(value)
-            if isinstance(expression, KeyTransform) and not isinstance(value, str):
-                return value
-            try:
-                value = json.loads(value, cls=self.decoder)
-            except json.JSONDecodeError:
-                pass
-
-            return super(NaClFieldMixin, self).to_python(value)
 
 
 class ModuleAttributeField(models.CharField):
@@ -451,15 +431,13 @@ class Channel(HashidsModelMixin, models.Model):
     extern_id = models.CharField(max_length=128, unique=True)
     options = BitField(flags=[])
     url = models.URLField()
-    auth_params = JSONNaClField(null=True, blank=True)
+    state = PickledObjectField(null=True, blank=True)
+    auth_params = models.JSONField(null=True, blank=True)
     public = models.BooleanField(default=False)
     name = models.CharField(max_length=64)
     title = models.CharField(max_length=128, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     poster = models.ImageField(null=True, blank=True)
-    update_interval_hours = models.PositiveSmallIntegerField(default=24)
-    best_hour = models.PositiveSmallIntegerField(default=get_random_hour)
-    next_update = models.DateTimeField(default=timezone.now)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
@@ -472,14 +450,17 @@ class Channel(HashidsModelMixin, models.Model):
         Channel.objects.filter(id=self.id).update(**kwargs)
 
 
-class ChannelMeta(Channel):
+class ChannelMeta(models.Model):
     # We don't often need the orignal JSON data, it is kept here for archival
     # purposes only in order to not bloat the base table.
+    channel = models.ForeignKey(
+        Channel, related_name='meta', on_delete=models.CASCADE)
     metadata = models.JSONField()
 
 
 class Tag(models.Model):
-    name = CITextField(max_length=32, null=False, unique=True)
+    name = models.TextField(
+        max_length=32, null=False, unique=True, db_collation='ci')
 
     def __str__(self):
         return self.name
@@ -506,6 +487,18 @@ class Video(HashidsModelMixin, models.Model):
     def __str__(self):
         return self.title
 
+    def update_tags(self, tags):
+        if tags is None:
+            self.tags.clear()
+            return
+
+        curr = set(self.tags.all().values_list('name', flat=True))
+        new = set(tags)
+        self.tags.filter(name__in=curr.difference(new)).delete()
+        for name in new.difference(curr):
+            self.tags.create(name=name)
+
+
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
         for src in self.sources.all():
@@ -513,23 +506,25 @@ class Video(HashidsModelMixin, models.Model):
             src.save()
 
 
-class VideoMeta(Video):
+class VideoMeta(models.Model):
     # We don't often need the orignal JSON data, it is kept here for archival
     # purposes only in order to not bloat the base table.
+    video = models.ForeignKey(
+        Video, related_name='meta', on_delete=models.CASCADE)
     metadata = models.JSONField()
 
 
 class VideoSource(HashidsModelMixin, models.Model):
     class Meta:
         unique_together = [
-            ('video', 'mime', 'width', 'height'),
+            ('video', 'extern_id'),
             ('video', 'url'),
         ]
 
     video = models.ForeignKey(
         Video, related_name='sources', on_delete=models.CASCADE)
-    extern_id = models.CharField(max_length=128, unique=True)
-    width = models.PositiveSmallIntegerField()
+    extern_id = models.CharField(max_length=128)
+    width = models.PositiveSmallIntegerField(null=True, blank=True)
     height = models.PositiveSmallIntegerField(null=True, blank=True)
     fps = models.PositiveSmallIntegerField(null=True, blank=True)
     size = models.PositiveBigIntegerField(null=True, blank=True)
@@ -543,13 +538,16 @@ class VideoSource(HashidsModelMixin, models.Model):
 
     @property
     def dimension(self):
+        width = str(self.width) if self.width else ''
         height = f'x{self.height}' if self.height else ''
-        return f'{self.width}{height}'
+        return f'{width}{height}'
 
 
-class VideoSourceMeta(VideoSource):
+class VideoSourceMeta(models.Model):
     # We don't often need the orignal JSON data, it is kept here for archival
     # purposes only in order to not bloat the base table.
+    video_source = models.ForeignKey(
+        VideoSource, related_name='meta', on_delete=models.CASCADE)
     metadata = models.JSONField()
 
 
@@ -562,7 +560,7 @@ class Subscription(HashidsModelMixin, models.Model):
     user = models.ForeignKey(
         User, related_name='subscribed', on_delete=models.CASCADE)
     package = models.ForeignKey(
-        Package, related_name='subscribers', on_delete=models.CASCADE)
+        Package, related_name='subscriptions', on_delete=models.CASCADE)
     active = models.BooleanField(default=True)
     stripe_account_id = models.CharField(max_length=255, null=True, blank=True)
     options = BitField(flags=[

@@ -3,6 +3,7 @@ version: "3.4"
 volumes:
   db-data:
   media:
+  squid-proxies:
 
 services:
   api:
@@ -37,7 +38,7 @@ services:
       - DJANGO_ES_INSECURE_TRANSPORT=true
       - DJANGO_ES_HOST=es
       - DJANGO_ES_PORT=9200
-      - VIDEOSRC_PROXY=proxy:proxy@squid:3128
+      - VIDEOSRC_PROXY=http://squid:3128
     env_file:
       # See .env.template for instructions.
       - .env
@@ -61,14 +62,13 @@ services:
     build:
       dockerfile: ./docker/squid/Dockerfile
       context: .
-    ports:
-      - 3128:3128
     environment:
       - USERNAME=proxy
       - PASSWORD=proxy
     volumes:
       - ./docker/squid/entrypoint.sh:/entrypoint.sh:ro
       - ./docker/squid/squid.conf:/etc/squid/squid.conf:ro
+      - squid-proxies:/var/run/squid/
 
   embed:
     image: nginx:alpine
@@ -98,7 +98,7 @@ services:
 
   celery:
     image: cesium
-    command: celery
+    command: python manage.py celery
     depends_on:
       - db
       - redis
@@ -115,7 +115,7 @@ services:
       - DJANGO_ES_INSECURE_TRANSPORT=true
       - DJANGO_ES_HOST=es
       - DJANGO_ES_PORT=9200
-      - VIDEOSRC_PROXY=proxy:proxy@squid:3128
+      - VIDEOSRC_PROXY=http://squid:3128
     env_file:
       # See .env.template for instructions.
       - .env

@@ -55,7 +55,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL('CREATE EXTENSION IF NOT EXISTS "citext"'),
+        migrations.RunSQL("CREATE COLLATION ci (provider = icu, locale = 'und-u-ks-level2', deterministic = false);"),
         migrations.CreateModel(
             name='User',
             fields=[

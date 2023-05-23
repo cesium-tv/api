@@ -1,0 +1,24 @@
+[
+  {
+    "model": "django_celery_beat.crontabschedule",
+    "pk": 2,
+    "fields": {
+      "minute": "*",
+      "hour": "*/4",
+      "day_of_week": "*",
+      "day_of_month": "*",
+      "month_of_year": "*",
+      "timezone": "UTC"
+    }
+  },
+  {
+    "model": "django_celery_beat.periodictask",
+    "pk": 2,
+    "fields": {
+      "name": "rest.tasks.video.update_channels",
+      "task": "rest.tasks.video.update_channels",
+      "crontab": 2,
+      "date_changed": "2023-05-23T04:17:27.925Z",
+    }
+  }
+]

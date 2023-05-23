@@ -24,5 +24,31 @@
       "created": "2022-09-01T20:09:12.922Z",
       "updated": "2022-09-01T20:09:12.922Z"
     }
+  },
+  {
+    "model": "rest.channel",
+    "pk": 3,
+    "fields": {
+      "user": 1,
+      "extern_id": "25e754ef2848f317d81488467908db3c",
+      "name": "Mental Outlaw",
+      "url": "https://odysee.com/@AlphaNerd:8",
+      "packages": [1],
+      "created": "2022-09-01T20:09:12.922Z",
+      "updated": "2022-09-01T20:09:12.922Z"
+    }
+  },
+  {
+    "model": "rest.channel",
+    "pk": 4,
+    "fields": {
+      "user": 1,
+      "extern_id": "25e754ef2848f317d81488467908db3d",
+      "name": "Styxhexenhammer666",
+      "url": "https://rumble.com/c/Styxhexenhammer666",
+      "packages": [1],
+      "created": "2022-09-01T20:09:12.922Z",
+      "updated": "2022-09-01T20:09:12.922Z"
+    }
   }
 ]

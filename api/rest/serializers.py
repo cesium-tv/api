@@ -5,7 +5,7 @@ from drf_recaptcha.fields import ReCaptchaV2Field
 
 from rest.models import (
     Channel, VideoSource, Video,  OAuth2Token, OAuth2Client, OAuth2Code, Play,
-    Like, Dislike,
+    Like, Dislike, Subscription,
 )
 
 User = get_user_model()
@@ -70,8 +70,14 @@ class ChannelSerializer(serializers.ModelSerializer):
         fields = ('uid', 'name', 'url', 'videos', 'subscribers', 'created')
 
     uid = serializers.CharField(read_only=True)
-    videos = serializers.IntegerField(source='num_videos')
-    subscribers = serializers.IntegerField(source='num_subscribers')
+    videos = serializers.SerializerMethodField()
+    subscribers = serializers.SerializerMethodField()
+
+    def get_videos(self, obj):
+        return Video.objects.filter(channel=obj).count()
+
+    def get_subscribers(self, obj):
+        return Subscription.objects.filter(package__channels__in=(obj,)).count()
 
 
 class VideoSourceSerializer(serializers.ModelSerializer):
@@ -87,44 +93,13 @@ class VideoSerializer(serializers.ModelSerializer):
         model = Video
         fields = (
             'uid', 'channel', 'title', 'poster', 'duration', 'published',
-            'sources', 'total_plays', 'total_likes', 'total_dislikes', 'liked',
-            'disliked', 'played', 'created',
+            'sources', 'created',
         )
 
     uid = serializers.CharField(read_only=True)
-    channel = ChannelSerializer()
-    sources = serializers.SerializerMethodField()
-    played = serializers.SerializerMethodField()
-    liked = serializers.SerializerMethodField()
-    disliked = serializers.SerializerMethodField()
-    plays = serializers.SerializerMethodField()
-    likes = serializers.SerializerMethodField()
-    dislikes = serializers.SerializerMethodField()
+    channel = ChannelSerializer(read_only=True)
+    sources = VideoSourceSerializer(many=True, read_only=True)
 
-    def get_sources(self, obj):
-        sources = {}
-        for source in obj.sources.all():
-            sources[source.dimension] = \
-                VideoSourceSerializer(source, many=False).data
-        return sources
-
-    def get_played(self, obj):
-        return getattr(obj, 'played', None)
-
-    def get_liked(self, obj):
-        return getattr(obj, 'liked', None)
-
-    def get_disliked(self, obj):
-        return getattr(obj, 'disliked', None)
-
-    def get_plays(self, obj):
-        return getattr(obj, 'plays', None)
-
-    def get_likes(self, obj):
-        return getattr(obj, 'likes', None)
-
-    def get_dislikes(self, obj):
-        return getattr(obj, 'dislikes', None)
 
 
 class PlaySerializer(serializers.ModelSerializer):

@@ -29,9 +29,12 @@ function download_proxy_list() {
 }
 
 # some setup
-htpasswd -cb /etc/squid/passwd "${USERNAME}" "${PASSWORD}"
-download_proxy_list
+# htpasswd -cb /etc/squid/passwd "${USERNAME}" "${PASSWORD}"
 chown squid:squid /dev/stdout
+
+if [ ! -f ${PROXY_CONF} || $(find ${PROXY_CONF} -mtime +1) ]; then
+    download_proxy_list
+fi
 
 # start squid
 exec $(which squid) -NYCd 1 &

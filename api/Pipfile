@@ -30,11 +30,11 @@ django-elasticsearch-dsl = "*"
 django-haystack = {extras = ["elasticsearch"], version = "*"}
 django-elasticsearch-debug-toolbar = "*"
 celery-haystack-ng = "*"
-videosrc = "==0.1.6"
 django-nacl-fields = {ref = "2742c15cbb66fe2c726cf887bd90e54678036aa7", git = "https://github.com/btimby/django-nacl-fields.git"}
 django-picklefield = "*"
 django-bitfield = "*"
 stripe = "*"
+videosrc = {ref = "73e7cc99d6032a72539de9e8bea32b0643d9655b", git = "https://github.com/cesium-tv/videosrc.git"}
 
 [dev-packages]
 flake8 = "*"

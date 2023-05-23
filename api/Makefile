@@ -52,5 +52,12 @@ dbshell:
 	${DOCKER_COMPOSE} run api python3 manage.py dbshell
 
 
+Pipfile.lock: Pipfile
+	pipenv lock
+
+
+lock: Pipfile.lock
+
+
 .PHONY: clean
 clean:
