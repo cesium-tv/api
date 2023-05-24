@@ -5,7 +5,7 @@
     "fields": {
       "user": 1,
       "extern_id": "25e754ef2848f307d81488467908db3a",
-      "name": "Members Only: Timcast IRL",
+      "name": "Timcast IRL: Members Only",
       "url": "https://timcast.com/members-area/section/timcast-irl/",
       "packages": [1],
       "created": "2022-09-01T20:09:12.922Z",
@@ -15,6 +15,19 @@
   {
     "model": "rest.channel",
     "pk": 2,
+    "fields": {
+      "user": 1,
+      "extern_id": "25e754ef2848f307d81488467908db3a",
+      "name": "The Culture War with Tim Pool",
+      "is_public": true,
+      "url": "https://timcast.com/channel/culture-war/",
+      "created": "2022-09-01T20:09:12.922Z",
+      "updated": "2022-09-01T20:09:12.922Z"
+    }
+  },
+  {
+    "model": "rest.channel",
+    "pk": 3,
     "fields": {
       "user": 1,
       "extern_id": "25e754ef2848f317d81488467908db3a",
@@ -27,26 +40,26 @@
   },
   {
     "model": "rest.channel",
-    "pk": 3,
+    "pk": 4,
     "fields": {
       "user": 1,
       "extern_id": "25e754ef2848f317d81488467908db3c",
       "name": "Mental Outlaw",
+      "is_public": true,
       "url": "https://odysee.com/@AlphaNerd:8",
-      "packages": [1],
       "created": "2022-09-01T20:09:12.922Z",
       "updated": "2022-09-01T20:09:12.922Z"
     }
   },
   {
     "model": "rest.channel",
-    "pk": 4,
+    "pk": 5,
     "fields": {
       "user": 1,
       "extern_id": "25e754ef2848f317d81488467908db3d",
       "name": "Styxhexenhammer666",
+      "is_public": true,
       "url": "https://rumble.com/c/Styxhexenhammer666",
-      "packages": [1],
       "created": "2022-09-01T20:09:12.922Z",
       "updated": "2022-09-01T20:09:12.922Z"
     }

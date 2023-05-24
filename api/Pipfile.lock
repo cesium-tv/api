@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "4007f5529d5626d4f4176876adbd5119b5af5d2a83554056e2c3bd78ce25a551"
+            "sha256": "423a44a8497ce77bca7b3fca4c8fb0383db1ca6064e97a4938b8ec4d7d2d2e3b"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -156,11 +156,11 @@
         },
         "asgiref": {
             "hashes": [
-                "sha256:71e68008da809b957b7ee4b43dbccff33d1b23519fb8344e33f049897077afac",
-                "sha256:9567dfe7bd8d3c8c892227827c41cce860b368104c3431da67a0c5a65a949506"
+                "sha256:14087924af5be5d8103d6f2edffe45a0bf7ab1b2a771b6f00a6db8c302f21f34",
+                "sha256:5d6c4a8a1c99f58eaa3bc392ee04e3587b693f09e3af1f3f16a09094f334eb52"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==3.6.0"
+            "version": "==3.7.0"
         },
         "async-timeout": {
             "hashes": [
@@ -1436,6 +1436,14 @@
             "markers": "python_version >= '3.7'",
             "version": "==4.65.0"
         },
+        "typing-extensions": {
+            "hashes": [
+                "sha256:6ad00b63f849b7dcc313b70b6b304ed67b2b2963b3098a33efe18056b1a9a223",
+                "sha256:ff6b238610c747e44c268aa4bb23c8c735d665a63726df3f9431ce707f2aa768"
+            ],
+            "markers": "python_version < '3.11'",
+            "version": "==4.6.0"
+        },
         "tzdata": {
             "hashes": [
                 "sha256:11ef1e08e54acb0d4f95bdb1be05da659673de4acbd21bf9c69e94cc5e907a3a",
@@ -1461,7 +1469,7 @@
         },
         "videosrc": {
             "git": "https://github.com/cesium-tv/videosrc.git",
-            "ref": "1cb3d29ab72531d41a801590ae8fcda2ad86d0b9"
+            "ref": "73e7cc99d6032a72539de9e8bea32b0643d9655b"
         },
         "vine": {
             "hashes": [
@@ -1645,11 +1653,11 @@
     "develop": {
         "asgiref": {
             "hashes": [
-                "sha256:71e68008da809b957b7ee4b43dbccff33d1b23519fb8344e33f049897077afac",
-                "sha256:9567dfe7bd8d3c8c892227827c41cce860b368104c3431da67a0c5a65a949506"
+                "sha256:14087924af5be5d8103d6f2edffe45a0bf7ab1b2a771b6f00a6db8c302f21f34",
+                "sha256:5d6c4a8a1c99f58eaa3bc392ee04e3587b693f09e3af1f3f16a09094f334eb52"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==3.6.0"
+            "version": "==3.7.0"
         },
         "brotli": {
             "hashes": [
@@ -1828,6 +1836,14 @@
             ],
             "markers": "python_version >= '3.5'",
             "version": "==0.4.4"
+        },
+        "typing-extensions": {
+            "hashes": [
+                "sha256:6ad00b63f849b7dcc313b70b6b304ed67b2b2963b3098a33efe18056b1a9a223",
+                "sha256:ff6b238610c747e44c268aa4bb23c8c735d665a63726df3f9431ce707f2aa768"
+            ],
+            "markers": "python_version < '3.11'",
+            "version": "==4.6.0"
         },
         "whitenoise": {
             "hashes": [

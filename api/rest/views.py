@@ -155,7 +155,7 @@ class ChannelViewSet(ModelViewSet):
         queryset = Channel.objects.all()
 
         if not self.request.user.is_authenticated:
-            queryset = queryset.filter(public=True)
+            queryset = queryset.filter(is_public=True)
 
         else:
             # NOTE: we select all channels that relate to a package that the
@@ -180,7 +180,7 @@ class VideoViewSet(ModelViewSet):
             .order_by('-published')
 
         if not self.request.user.is_authenticated:
-            queryset = queryset.filter(channel__public=True)
+            queryset = queryset.filter(channel__id_public=True)
 
         else:
             subbed = Subscription.objects.filter(

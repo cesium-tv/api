@@ -7,6 +7,7 @@ import json
 import time
 from os.path import splitext
 from datetime import timedelta
+from dataclasses import asdict
 
 import sass
 from csscompressor import compress
@@ -114,6 +115,12 @@ def get_random_code():
 
 def get_random_hour():
     return random.randint(0, 23)
+
+
+def maybe_make_aware(dt):
+    if timezone.is_aware(dt):
+        return dt
+    return timezone.make_aware(dt, timezone=timezone.utc)
 
 
 class HashidsQuerySet(models.QuerySet):
@@ -433,7 +440,7 @@ class Channel(HashidsModelMixin, models.Model):
     url = models.URLField()
     state = PickledObjectField(null=True, blank=True)
     auth_params = models.JSONField(null=True, blank=True)
-    public = models.BooleanField(default=False)
+    is_public = models.BooleanField(default=False)
     name = models.CharField(max_length=64)
     title = models.CharField(max_length=128, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
@@ -446,8 +453,28 @@ class Channel(HashidsModelMixin, models.Model):
     def __str__(self):
         return self.name
 
+    def set_metadata(self, metadata=None):
+        if metadata is None:
+            return
+
+        ChannelMeta.update_or_create(
+            video=self, defaults={'metadata': metadata})
+
     def update(self, **kwargs):
         Channel.objects.filter(id=self.id).update(**kwargs)
+    
+    def from_dataclass(self, data):
+        defaults = asdict(data)
+        original = defaults.pop('original', None)
+
+        for key, value in defaults.items():
+            # Don't overwrite existing values, but fill in anything missing.
+            if getattr(self, key) is not None:
+                continue
+            setattr(self, key, value)
+
+        self.save()
+        self.set_metadata(original)
 
 
 class ChannelMeta(models.Model):
@@ -458,12 +485,70 @@ class ChannelMeta(models.Model):
     metadata = models.JSONField()
 
 
+class TagManager(models.Manager):
+    def add_to(self, obj, tags):
+        for name in tags:
+            obj.tags.add(self.get_or_create(name=name)[0].pk)
+            LOGGER.debug('Added tag %s to %s', name, obj)
+
+    def remove_from(self, obj, tags=None):
+        if tags is None:
+            obj.tags.clear()
+            LOGGER.debug('Removed all tags from %s', obj)
+            return
+
+        for name in tags:
+            try:
+                obj.tags.remove(Tag.objects.get(name=name))
+            except Tag.DoesNotExist:
+                pass
+            else:
+                LOGGER.debug('Removed tag %s from %s', name, obj)
+
+    def merge_to(self, obj, tags=None):
+        if tags is None:
+            obj.tags.clear()
+            LOGGER.debug('Removed all tags from %s', obj)
+            return
+
+        e, n = set(obj.tags.all().values_list('name', flat=True)), set(tags)
+
+        self.add_to(obj, n.difference(e))
+        self.remove_from(obj, e.difference(n))
+
+
 class Tag(models.Model):
     name = models.TextField(
         max_length=32, null=False, unique=True, db_collation='ci')
 
+    objects = TagManager()
+
     def __str__(self):
         return self.name
+
+
+class VideoManager(HashidsManager):
+    def from_dataclass(self, channel, data):
+        defaults = asdict(data)
+        extern_id = defaults.pop('extern_id')
+
+        # Used later in separate models.
+        tags = defaults.pop('tags')
+        original = defaults.pop('original')
+        # Must be handled specially
+        del defaults['sources']
+
+        # Convert naive datetime to UTC
+        defaults['published'] = maybe_make_aware(defaults['published'])
+
+        video, created = Video.objects.update_or_create(
+            channel=channel, extern_id=extern_id, defaults=defaults)
+
+        Tag.objects.merge_to(video, tags)
+        Video.set_metadata(original)
+        VideoSource.objects.from_dataclass(video, data.sources)
+
+        return video, created
 
 
 class Video(HashidsModelMixin, models.Model):
@@ -482,22 +567,15 @@ class Video(HashidsModelMixin, models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
-    objects = HashidsManager()
+    objects = VideoManager()
 
     def __str__(self):
         return self.title
 
-    def update_tags(self, tags):
-        if tags is None:
-            self.tags.clear()
+    def set_metadata(self, metadata=None):
+        if metadata is None:
             return
-
-        curr = set(self.tags.all().values_list('name', flat=True))
-        new = set(tags)
-        self.tags.filter(name__in=curr.difference(new)).delete()
-        for name in new.difference(curr):
-            self.tags.create(name=name)
-
+        VideoMeta.update_or_create(video=self, defaults={'metadata': metadata})
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -512,6 +590,27 @@ class VideoMeta(models.Model):
     video = models.ForeignKey(
         Video, related_name='meta', on_delete=models.CASCADE)
     metadata = models.JSONField()
+
+
+class VideoSourceManager(HashidsManager):
+    def from_dataclass(self, video, datas):
+        try:
+            iter(datas)
+        except:
+            datas = [datas]
+        
+        for data in datas:
+            defaults = asdict(data)
+            original = defaults.pop('original')
+            extern_id = defaults.pop('extern_id')
+            url = defaults.pop('url')
+            video_source, created = VideoSource.objects.update_or_create(
+                video=video,
+                extern_id=extern_id,
+                url=url,
+                defaults=defaults,
+            )
+            VideoSource.set_metadata(original)
 
 
 class VideoSource(HashidsModelMixin, models.Model):
@@ -533,8 +632,16 @@ class VideoSource(HashidsModelMixin, models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
+    objects = VideoSourceManager()
+
     def __str__(self):
         return self.dimension
+
+    def set_metadata(self, metadata=None):
+        if metadata is None:
+            return
+        VideoSourceMeta.update_or_create(
+            video_source=self, defaults={'metadata': metadata})
 
     @property
     def dimension(self):
@@ -561,7 +668,7 @@ class Subscription(HashidsModelMixin, models.Model):
         User, related_name='subscribed', on_delete=models.CASCADE)
     package = models.ForeignKey(
         Package, related_name='subscriptions', on_delete=models.CASCADE)
-    active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
     stripe_account_id = models.CharField(max_length=255, null=True, blank=True)
     options = BitField(flags=[
         ('notify', 'Notify me of new videos'),

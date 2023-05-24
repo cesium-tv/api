@@ -92,6 +92,8 @@ services:
       - DJANGO_ES_INSECURE_TRANSPORT=true
       - DJANGO_ES_HOST=es
       - DJANGO_ES_PORT=9200
+      - CELERY_UID=65534
+      - CELERY_GID=65534
     env_file:
       # See .env.template for instructions.
       - .env
@@ -110,11 +112,14 @@ services:
       - ./docker/api/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app:ro
     environment:
+      - DJANGO_DEBUG=true
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
       - DJANGO_ES_INSECURE_TRANSPORT=true
       - DJANGO_ES_HOST=es
       - DJANGO_ES_PORT=9200
+      - CELERY_UID=65534
+      - CELERY_GID=65534
       - VIDEOSRC_PROXY=http://squid:3128
     env_file:
       # See .env.template for instructions.

@@ -6,14 +6,12 @@ import random
 
 from pprint import pprint, pformat
 from itertools import repeat
-from dataclasses import asdict
 
 from celery import chain
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.db import IntegrityError, DatabaseError
-from videosrc import crawl_sync  # , auth_sync
-# from videosrc.errors import AuthenticationFailure
+from videosrc import crawl_sync
 
 from api.celery import task
 from rest.models import (
@@ -23,7 +21,6 @@ from rest.models import (
 
 
 LOGGER = get_task_logger(__name__)
-MAX_CHANNEL_UPDATE_JITTER = 7200
 
 
 def save_state_factory(channel):
@@ -43,57 +40,21 @@ def update_channel(self, channel_id):
 
     try:
         auth_params = channel.auth_params or {}
-        channel_model, videos = crawl_sync(
+        channel_data, videos = crawl_sync(
             channel.url,
             state=channel.state,
             save_state=save_state_factory(channel),
             **auth_params,
         )
-        defaults = asdict(channel_model)
-        original = defaults.pop('original', {})
-        channel.update(**defaults)
-        if original:
-            ChannelMeta.objects.update_or_create(
-                channel=channel, defaults={'metadata': original})
+        channel.from_dataclass(channel_data)
 
-        for video_model in videos:
-            defaults = asdict(video_model)
-            extern_id = defaults.pop('extern_id')
-            # used later in separate models.
-            tags = defaults.pop('tags')
-            sources = defaults.pop('sources')
-            original = defaults.pop('original')
-
-            video, created = Video.objects.update_or_create(
-                channel=channel, extern_id=extern_id, defaults=defaults)
-
-            video.update_tags(tags)
-
-            if video_model.original:
-                VideoMeta.objects.update_or_create(
-                    video=video, defaults={'metadata': original})
-
+        for video in videos:
+            video, created = Video.objects.from_dataclass(channel, video)
             if created:
                 LOGGER.debug('Added new video %s', video.id)
 
             else:
                 LOGGER.info('Updated video %s', video.id)
-
-            for source in sources:
-                original = source.pop('original')
-                extern_id = source.pop('extern_id')
-                url = source.pop('url')
-                video_source, created = VideoSource.objects.update_or_create(
-                    video=video,
-                    extern_id=extern_id,
-                    url=url,
-                    defaults=source,
-                )
-                if original:
-                    VideoSourceMeta.objects.update_or_create(
-                        video_source=video_source,
-                        defaults={'metadata': original}
-                    )
 
     except DatabaseError:
         LOGGER.exception('Error saving video data')

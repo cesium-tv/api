@@ -41,7 +41,8 @@ SECRET_KEY = get_from_env_or_file(
 TEST = 'test' in sys.argv
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DJANGO_DEBUG', None) == 'true' and not TEST
+DEBUG = os.getenv('DJANGO_DEBUG', '').lower() in ('on', 'true', 'yes') and \
+        not TEST
 
 ALLOWED_HOSTS = [
     s.strip() for s in os.getenv(
@@ -228,7 +229,9 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_BEAT_SCHEDULER = os.environ.get(
     'CELERY_BEAT_SCHEDULER',
     'django_celery_beat.schedulers:DatabaseScheduler')
-CELERY_COMMAND = ('celery', '-A', 'api', 'worker', '-l', 'info')
+CELERY_COMMAND = (
+    'celery', '-A', 'api', 'worker', '-l', 'info',
+)
 CELERY_AUTORELOAD = DEBUG
 CELERY_ALWAYS_EAGER = TEST
 CELERY_TIMEZONE = TIME_ZONE
@@ -296,6 +299,11 @@ HAYSTACK_CONNECTIONS = {
 #        'KWARGS': {'verify_certs': DJANGO_ES_INSECURE_TRANSPORT},
     },
 }
+
+# TODO: future improvement, batches...
+# Would need to implement custom signal handler, and utilize ES _bulk endpoint
+# with multiple records combined.
+# https://pypi.org/project/celery-batches/
 HAYSTACK_SIGNAL_PROCESSOR = 'celery_haystack.signals.CelerySignalProcessor'
 
 STRIPE_CLIENT_ID = os.getenv('DJANGO_STRIPE_CLIENT_ID')

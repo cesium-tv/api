@@ -26,10 +26,26 @@ elif [ "${CMD}" == "migrate" ]; then
     python3 manage.py migrate --noinput
 
 elif [ "${CMD}" == "beat" ]; then
-    celery -A api beat -l info
+    if [ ! -z "${CELERY_UID}" ]; then
+        ARGS=" --uid ${CELERY_UID}"
+    fi
+
+    if [ ! -z "${CELERY_GID}" ]; then
+        ARGS="${ARGS} --gid ${CELERY_GID}"
+    fi
+
+    celery -A api beat -l info${ARGS}
 
 elif [ "${CMD}" == "celery" ]; then
-    python manage.py celery
+    if [ ! -z "${CELERY_UID}" ]; then
+        ARGS=" --uid ${CELERY_UID}"
+    fi
+
+    if [ ! -z "${CELERY_GID}" ]; then
+        ARGS="${ARGS} --gid ${CELERY_GID}"
+    fi
+
+    python manage.py celery${ARGS}
 
 elif [ "${CMD}" == "test" ]; then
     python3 manage.py test
