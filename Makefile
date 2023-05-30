@@ -4,6 +4,7 @@ DOCKER_COMPOSE = docker compose -p cesium-tv
 
 .PHONY: build
 build:
+	${MAKE} -C api build
 	${DOCKER_COMPOSE} build
 
 

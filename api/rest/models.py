@@ -14,7 +14,7 @@ from csscompressor import compress
 
 from django import forms
 from django.db import models
-from django.db.models import Q, F
+from django.db.models import Exists, Count, OuterRef, Subquery, Func, F, Q
 from django.db.transaction import atomic
 from django.core.validators import FileExtensionValidator
 from django.core.files.base import ContentFile
@@ -172,6 +172,14 @@ class HashidsModelMixin:
         return self.hashids().encode(self.id)
 
 
+class CreatedUpdatedMixin(models.Model):
+    class Meta:
+        abstract = True
+
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+
 class ChoiceArrayField(ArrayField):
     """
     A field that allows us to store an array of choices.
@@ -249,7 +257,7 @@ class UserManager(HashidsManagerMixin, BaseUserManager):
         return self.create_user(email, password, **kwargs)
 
 
-class User(HashidsModelMixin, AbstractUser):
+class User(HashidsModelMixin, CreatedUpdatedMixin, AbstractUser):
     class Meta:
         unique_together = [
             ('email', 'site', ),
@@ -263,8 +271,6 @@ class User(HashidsModelMixin, AbstractUser):
     is_confirmed = models.BooleanField(default=False)
     site = models.ForeignKey(
         Site, related_name='users', on_delete=models.CASCADE)
-    created = models.DateTimeField(default=timezone.now)
-    updated = models.DateTimeField(auto_now=True)
 
     objects = UserManager()
 
@@ -307,17 +313,15 @@ class User(HashidsModelMixin, AbstractUser):
         return True
 
 
-class StripeAccount(models.Model):
+class StripeAccount(CreatedUpdatedMixin, models.Model):
     user = models.OneToOneField(
         User, related_name='stripe_account', on_delete=models.CASCADE)
     account_id = models.CharField(max_length=255)
     access_token = models.CharField(max_length=255)
     refresh_token = models.CharField(max_length=255)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
 
-class Brand(HashidsModelMixin, models.Model):
+class Brand(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
     user = models.ForeignKey(
         User, related_name='brands', on_delete=models.CASCADE)
     name = models.CharField(max_length=32)
@@ -335,8 +339,6 @@ class Brand(HashidsModelMixin, models.Model):
     success = ColorField(default='#48c78e', verbose_name='Success dialogs / text')
     warning = ColorField(default='#ffe08a', verbose_name='Warning dialogs / text')
     danger = ColorField(default='#f14668', verbose_name='Danger dialogs / text')
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f'{self.name}'
@@ -369,7 +371,7 @@ class Brand(HashidsModelMixin, models.Model):
         return super().save(*args, **kwargs)
 
 
-class SiteOption(models.Model):
+class SiteOption(CreatedUpdatedMixin, models.Model):
     site = models.OneToOneField(
         Site, related_name='options', on_delete=models.CASCADE)
     title = models.CharField('app title', max_length=64, null=True, blank=True)
@@ -382,14 +384,12 @@ class SiteOption(models.Model):
     auth_required = models.BooleanField(default=False)
     default_menu_item = models.CharField(
         null=True, blank=True, max_length=16, choices=MENU_ITEMS)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f'{self.site.name} options'
 
 
-class MenuItem(models.Model):
+class MenuItem(CreatedUpdatedMixin, models.Model):
     option = models.ForeignKey(
         SiteOption, related_name='menu_items', on_delete=models.CASCADE)
     name = models.CharField(
@@ -399,11 +399,9 @@ class MenuItem(models.Model):
         help_text='Title of item in menu')
     sort = models.PositiveSmallIntegerField(
         default=0, help_text='Order of item in menu')
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
 
-class Package(models.Model):
+class Package(CreatedUpdatedMixin, models.Model):
     user = models.ForeignKey(
         User, related_name='packages', on_delete=models.CASCADE)
     name = models.CharField(max_length=30)
@@ -421,14 +419,41 @@ class Package(models.Model):
         ('preview_3', 'Grant three free previews'),
         ('preview_5', 'Grant five free previews'),
     ])
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.name
 
 
-class Channel(HashidsModelMixin, models.Model):
+class ChannelManager(HashidsManager):
+    def from_dataclass(self, data):
+        defaults = asdict(data)
+        extern_id = defaults.pop('extern_id')
+        original = defaults.pop('original', None)
+
+        channel, created = self.update_or_create(
+            extern_id=extern_id, defaults=defaults)
+        channel.set_metadata(original)
+
+    def for_user(self, user):
+        queryset = self.all()
+
+        if not user.is_authenticated:
+            queryset = queryset.filter(is_public=True)
+
+        else:
+            # NOTE: we select all channels that relate to a package that the
+            # user subscribes to.        
+            subbed = Subscription.objects.filter(
+                package__channels__id=OuterRef('id'),
+                user=user
+            )
+
+            queryset = queryset.filter(Exists(subbed))
+
+        return queryset
+
+
+class Channel(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
     user = models.ForeignKey(
         User, related_name='channels', on_delete=models.CASCADE)
     task = models.ForeignKey(
@@ -445,10 +470,8 @@ class Channel(HashidsModelMixin, models.Model):
     title = models.CharField(max_length=128, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     poster = models.ImageField(null=True, blank=True)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
-    objects = HashidsManager()
+    objects = ChannelManager()
 
     def __str__(self):
         return self.name
@@ -477,7 +500,7 @@ class Channel(HashidsModelMixin, models.Model):
         self.set_metadata(original)
 
 
-class ChannelMeta(models.Model):
+class ChannelMeta(CreatedUpdatedMixin, models.Model):
     # We don't often need the orignal JSON data, it is kept here for archival
     # purposes only in order to not bloat the base table.
     channel = models.ForeignKey(
@@ -485,7 +508,20 @@ class ChannelMeta(models.Model):
     metadata = models.JSONField()
 
 
-class TagManager(models.Manager):
+class TagQuerySet(models.QuerySet):
+    # NOTE: read-only model, should not be modified once created.
+    def update(self, *args, **kwargs):
+        raise NotImplementedError('Tags are immutable.')
+
+    def delete(self, *args, **kwargs):
+        raise NotImplementedError('Tags are immutable.')
+
+
+class TagManager(models.Manager):   
+    def get_queryset(self):
+        # NOTE: use custom queryset.
+        return TagQuerySet(self.model, using=self._db)
+
     def add_to(self, obj, tags):
         for name in tags:
             obj.tags.add(self.get_or_create(name=name)[0].pk)
@@ -518,6 +554,7 @@ class TagManager(models.Manager):
 
 
 class Tag(models.Model):
+    # TODO: make immutable.
     name = models.TextField(
         max_length=32, null=False, unique=True, db_collation='ci')
 
@@ -526,8 +563,48 @@ class Tag(models.Model):
     def __str__(self):
         return self.name
 
+    def save(self, *args, **kwargs):
+        # NOTE: should not be modified once created.
+        if self.pk and 'force_insert' not in kwargs:
+            raise NotImplementedError('Tags are immutable.')
+        return super().save(*args, **kwargs)
+
+
+class VideoQuerySet(models.QuerySet):
+    def default_annotations(self, user=None):
+        queryset = self.annotate(
+                n_plays=Count('plays'),
+                n_likes=Count('likes'),
+                n_dislikes=Count('dislikes'),
+            )
+
+        if user:
+            queryset = queryset.annotate(
+                is_played=Exists(
+                    Play.objects.filter(
+                        video_id=OuterRef('pk'),
+                        user=user)
+                ),
+                is_liked=Exists(
+                    Like.objects.filter(
+                        video_id=OuterRef('pk'),
+                        user=user)
+                ),
+                is_disliked=Exists(
+                    Dislike.objects.filter(
+                        video_id=OuterRef('pk'),
+                        user=user)
+                ),
+            )
+
+        return queryset
+
 
 class VideoManager(HashidsManager):
+    def get_queryset(self):
+        return VideoQuerySet(
+            model=self.model, using=self._db, hints=self._hints)
+
     def from_dataclass(self, channel, data):
         defaults = asdict(data)
         extern_id = defaults.pop('extern_id')
@@ -545,13 +622,32 @@ class VideoManager(HashidsManager):
             channel=channel, extern_id=extern_id, defaults=defaults)
 
         Tag.objects.merge_to(video, tags)
-        Video.set_metadata(original)
+        video.set_metadata(original)
         VideoSource.objects.from_dataclass(video, data.sources)
 
         return video, created
 
+    def for_user(self, user, annotated=False):
+        queryset = self.all()
 
-class Video(HashidsModelMixin, models.Model):
+        if annotated:
+            queryset = queryset.default_annotations(user=user)
+
+        if not user.is_authenticated:
+            queryset = queryset.filter(channel__is_public=True)
+
+        else:
+            subbed = Subscription.objects.filter(
+                package__channels__id=OuterRef('channel_id'),
+                user=user
+            )
+
+            queryset = queryset.filter(Exists(subbed))
+
+        return queryset
+
+
+class Video(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
     tags = models.ManyToManyField(Tag, related_name='tagged', blank=True)
     channel = models.ForeignKey(
         Channel, related_name='videos', on_delete=models.CASCADE)
@@ -564,8 +660,6 @@ class Video(HashidsModelMixin, models.Model):
     total_likes = models.PositiveIntegerField(default=0)
     total_dislikes = models.PositiveIntegerField(default=0)
     published = models.DateTimeField(default=timezone.now)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     objects = VideoManager()
 
@@ -575,7 +669,8 @@ class Video(HashidsModelMixin, models.Model):
     def set_metadata(self, metadata=None):
         if metadata is None:
             return
-        VideoMeta.update_or_create(video=self, defaults={'metadata': metadata})
+        VideoMeta.objects.update_or_create(
+            video=self, defaults={'metadata': metadata})
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -584,7 +679,7 @@ class Video(HashidsModelMixin, models.Model):
             src.save()
 
 
-class VideoMeta(models.Model):
+class VideoMeta(CreatedUpdatedMixin, models.Model):
     # We don't often need the orignal JSON data, it is kept here for archival
     # purposes only in order to not bloat the base table.
     video = models.ForeignKey(
@@ -604,16 +699,17 @@ class VideoSourceManager(HashidsManager):
             original = defaults.pop('original')
             extern_id = defaults.pop('extern_id')
             url = defaults.pop('url')
+
             video_source, created = VideoSource.objects.update_or_create(
                 video=video,
                 extern_id=extern_id,
                 url=url,
                 defaults=defaults,
             )
-            VideoSource.set_metadata(original)
+            video_source.set_metadata(original)
 
 
-class VideoSource(HashidsModelMixin, models.Model):
+class VideoSource(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
     class Meta:
         unique_together = [
             ('video', 'extern_id'),
@@ -628,9 +724,7 @@ class VideoSource(HashidsModelMixin, models.Model):
     fps = models.PositiveSmallIntegerField(null=True, blank=True)
     size = models.PositiveBigIntegerField(null=True, blank=True)
     mime = models.CharField(max_length=64, null=True, blank=True)
-    url = models.URLField()
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
+    url = models.URLField(max_length=256)
 
     objects = VideoSourceManager()
 
@@ -640,7 +734,7 @@ class VideoSource(HashidsModelMixin, models.Model):
     def set_metadata(self, metadata=None):
         if metadata is None:
             return
-        VideoSourceMeta.update_or_create(
+        VideoSourceMeta.objects.update_or_create(
             video_source=self, defaults={'metadata': metadata})
 
     @property
@@ -650,7 +744,7 @@ class VideoSource(HashidsModelMixin, models.Model):
         return f'{width}{height}'
 
 
-class VideoSourceMeta(models.Model):
+class VideoSourceMeta(CreatedUpdatedMixin, models.Model):
     # We don't often need the orignal JSON data, it is kept here for archival
     # purposes only in order to not bloat the base table.
     video_source = models.ForeignKey(
@@ -658,7 +752,7 @@ class VideoSourceMeta(models.Model):
     metadata = models.JSONField()
 
 
-class Subscription(HashidsModelMixin, models.Model):
+class Subscription(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
     class Meta:
         unique_together = [
             ('user', 'package'),
@@ -673,43 +767,32 @@ class Subscription(HashidsModelMixin, models.Model):
     options = BitField(flags=[
         ('notify', 'Notify me of new videos'),
     ])
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f'{self.user}: {self.package}'
 
 
-class SubscriptionVideo(models.Model):
-    class Meta:
-        unique_together = [
-            ('video', 'subscription'),
-        ]
+# class SubscriptionVideo(CreatedUpdatedMixin, models.Model):
+#     class Meta:
+#         unique_together = [
+#             ('video', 'subscription'),
+#         ]
 
-    video = models.ForeignKey(
-        Video, related_name='channels', on_delete=models.CASCADE)
-    subscription = models.ForeignKey(
-        Subscription, related_name='videos', on_delete=models.CASCADE)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
+#     video = models.ForeignKey(
+#         Video, related_name='channels', on_delete=models.CASCADE)
+#     subscription = models.ForeignKey(
+#         Subscription, related_name='videos', on_delete=models.CASCADE)
 
-    def __str__(self):
-        return f'{self.channel}: {self.video}'
+#     def __str__(self):
+#         return f'{self.channel}: {self.video}'
 
 
-class Play(models.Model):
-    class Meta:
-        unique_together = [
-            ('user', 'video'),
-        ]
-
+class Play(CreatedUpdatedMixin, models.Model):
     user = models.ForeignKey(
         User, related_name='played', on_delete=models.CASCADE)
     video = models.ForeignKey(
         Video, related_name='plays', on_delete=models.CASCADE)
     cursor = models.JSONField(null=True, blank=True)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     objects = models.Manager()
 
@@ -717,7 +800,7 @@ class Play(models.Model):
         return f'{self.user} played {self.video}'
 
 
-class Like(models.Model):
+class Like(CreatedUpdatedMixin, models.Model):
     class Meta:
         unique_together = [
             ('user', 'video'),
@@ -727,8 +810,6 @@ class Like(models.Model):
         User, related_name='liked', on_delete=models.CASCADE)
     video = models.ForeignKey(
         Video, related_name='likes', on_delete=models.CASCADE)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
         Dislike.objects.filter(user=self.user, video=self.video).delete()
@@ -738,7 +819,7 @@ class Like(models.Model):
         return f'{self.user} liked {self.video}'
 
 
-class Dislike(models.Model):
+class Dislike(CreatedUpdatedMixin, models.Model):
     class Meta:
         unique_together = [
             ('user', 'video'),
@@ -748,8 +829,6 @@ class Dislike(models.Model):
         User, related_name='disliked', on_delete=models.CASCADE)
     video = models.ForeignKey(
         Video, related_name='dislikes', on_delete=models.CASCADE)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs):
         Like.objects.filter(user=self.user, video=self.video).delete()
@@ -757,6 +836,57 @@ class Dislike(models.Model):
 
     def __str__(self):
         return f'{self.user} disliked {self.video}'
+
+
+class QueueManager(models.Manager):
+    @atomic
+    def prepend(self, obj):
+        self.filter(user=obj.user) \
+            .update(position=F('position') + 1)
+        obj.position = 0
+        obj.save(force_insert=True)
+        obj.refresh_from_db()
+        return obj
+
+    @atomic
+    def append(self, obj):
+        # NOTE: Purposely did not use .count() here as that would be fragile in
+        # case there are gaps in our position values.
+        try:
+            obj.position = self \
+                .select_for_update() \
+                .filter(user=obj.user) \
+                .aggregate(Max('position')) \
+                .values_list('position__max', flat=True)[0] + 1
+
+        except IndexError:
+            obj.position = 0
+        obj.save(force_insert=True)
+        obj.refresh_from_db()
+        return obj
+
+    @atomic
+    def remove(self, obj):
+        position = obj.position
+        obj.delete()
+        self.filter(user=obj.user, position__gt=position) \
+            .update(position=F['position'] - 1)
+
+
+class Queue(CreatedUpdatedMixin, models.Model):
+    class Meta:
+        unique_together = [
+            ('user', 'video'),
+            ('user', 'position'),
+        ]
+
+    user = models.ForeignKey(
+        User, related_name='queued', on_delete=models.CASCADE)
+    video = models.ForeignKey(
+        Video, related_name='queued', on_delete=models.CASCADE)
+    position = models.PositiveSmallIntegerField(default=0)
+
+    objects = QueueManager()
 
 
 # https://docs.authlib.org/en/latest/django/2/authorization-server.html

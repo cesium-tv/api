@@ -34,7 +34,8 @@ django-nacl-fields = {ref = "2742c15cbb66fe2c726cf887bd90e54678036aa7", git = "h
 django-picklefield = "*"
 django-bitfield = "*"
 stripe = "*"
-videosrc = {ref = "73e7cc99d6032a72539de9e8bea32b0643d9655b", git = "https://github.com/cesium-tv/videosrc.git"}
+videosrc = {ref = "60d8c5a66e7b6c00e7c9d76ca2528cc13ed1e816", git = "https://github.com/cesium-tv/videosrc.git"}
+djangorestframework_filters = {ref = "47dff32f4c1f5f84ae08ab4fcb7c14dd48ca83d8", git = "https://github.com/cesium-tv/django-rest-framework-filters.git"}
 
 [dev-packages]
 flake8 = "*"

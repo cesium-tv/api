@@ -19,7 +19,7 @@ class ChannelIndex(CelerySearchIndex, indexes.Indexable):
         return object.uid
 
     def prepare_text(self, object):
-        return f'{object.name}\n{object.title}\n{description}\n{object.url}'
+        return f'{object.name}\n{object.title}\n{object.description}\n{object.url}'
     
     def prepare_public(self, object):
         return object.is_public

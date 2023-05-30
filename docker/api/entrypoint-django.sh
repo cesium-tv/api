@@ -27,22 +27,22 @@ elif [ "${CMD}" == "migrate" ]; then
 
 elif [ "${CMD}" == "beat" ]; then
     if [ ! -z "${CELERY_UID}" ]; then
-        ARGS=" --uid ${CELERY_UID}"
+        ARGS=" --uid=${CELERY_UID}"
     fi
 
     if [ ! -z "${CELERY_GID}" ]; then
-        ARGS="${ARGS} --gid ${CELERY_GID}"
+        ARGS="${ARGS} --gid=${CELERY_GID}"
     fi
 
     celery -A api beat -l info${ARGS}
 
 elif [ "${CMD}" == "celery" ]; then
     if [ ! -z "${CELERY_UID}" ]; then
-        ARGS=" --uid ${CELERY_UID}"
+        ARGS=" --uid=${CELERY_UID}"
     fi
 
     if [ ! -z "${CELERY_GID}" ]; then
-        ARGS="${ARGS} --gid ${CELERY_GID}"
+        ARGS="${ARGS} --gid=${CELERY_GID}"
     fi
 
     python manage.py celery${ARGS}

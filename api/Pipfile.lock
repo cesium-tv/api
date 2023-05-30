@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "423a44a8497ce77bca7b3fca4c8fb0383db1ca6064e97a4938b8ec4d7d2d2e3b"
+            "sha256": "dc0a34a8f9c3c76663b3d58ef3aa95cafbe12642f5a89d2d6b4000c13a7e2ed6"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -117,12 +117,13 @@
             "version": "==3.8.4"
         },
         "aiohttp-scraper": {
+            "git": "https://github.com/cesium-tv/aiohttp-scraper.git",
             "hashes": [
                 "sha256:080f6b423c5f7af4b29bb947753ad0dbd0fa37c3d7bb36cd3ac66d4e11d558f5",
                 "sha256:20b9df93f6590381298bb7351d9c2c3315726c97914d317ccbc9c5d7fe70ef2a"
             ],
             "markers": "python_version >= '3.7' and python_version < '4.0'",
-            "version": "==0.1.4"
+            "ref": "5c957608d60164eca75a3d00e2d1af309723504d"
         },
         "aioredis": {
             "hashes": [
@@ -167,7 +168,7 @@
                 "sha256:2163e1640ddb52b7a8c80d0a67a08587e5d245cc9c553a74a847056bc2976b15",
                 "sha256:8ca1e4fcf50d07413d66d1a5e416e42cfdf5851c981d679a09851a6853383b3c"
             ],
-            "markers": "python_full_version <= '3.11.2'",
+            "markers": "python_version >= '3.6'",
             "version": "==4.0.2"
         },
         "attrs": {
@@ -589,6 +590,14 @@
             "index": "pypi",
             "version": "==3.2.1"
         },
+        "django-filter": {
+            "hashes": [
+                "sha256:2fe15f78108475eda525692813205fa6f9e8c1caf1ae65daa5862d403c6dbf00",
+                "sha256:d12d8e0fc6d3eb26641e553e5d53b191eb8cec611427d4bdce0becb1f7c172b5"
+            ],
+            "markers": "python_version >= '3.7'",
+            "version": "==23.2"
+        },
         "django-haystack": {
             "extras": [
                 "elasticsearch"
@@ -660,6 +669,10 @@
             ],
             "index": "pypi",
             "version": "==3.14.0"
+        },
+        "djangorestframework-filters": {
+            "git": "https://github.com/cesium-tv/django-rest-framework-filters.git",
+            "ref": "47dff32f4c1f5f84ae08ab4fcb7c14dd48ca83d8"
         },
         "drf-recaptcha": {
             "hashes": [
@@ -1394,7 +1407,7 @@
         },
         "snscrape": {
             "git": "https://github.com/JustAnotherArchivist/snscrape.git",
-            "ref": "786815dd05681e2421cd03aa9acf5ab5c773bce9"
+            "ref": "e4c7644bf5e4917107b31b353cabfdaae906429f"
         },
         "soupsieve": {
             "hashes": [
@@ -1438,11 +1451,11 @@
         },
         "typing-extensions": {
             "hashes": [
-                "sha256:6ad00b63f849b7dcc313b70b6b304ed67b2b2963b3098a33efe18056b1a9a223",
-                "sha256:ff6b238610c747e44c268aa4bb23c8c735d665a63726df3f9431ce707f2aa768"
+                "sha256:06006244c70ac8ee83fa8282cb188f697b8db25bc8b4df07be1873c43897060c",
+                "sha256:3a8b36f13dd5fdc5d1b16fe317f5668545de77fa0b8e02006381fd49d731ab98"
             ],
             "markers": "python_version < '3.11'",
-            "version": "==4.6.0"
+            "version": "==4.6.2"
         },
         "tzdata": {
             "hashes": [
@@ -1469,7 +1482,7 @@
         },
         "videosrc": {
             "git": "https://github.com/cesium-tv/videosrc.git",
-            "ref": "73e7cc99d6032a72539de9e8bea32b0643d9655b"
+            "ref": "60d8c5a66e7b6c00e7c9d76ca2528cc13ed1e816"
         },
         "vine": {
             "hashes": [
@@ -1839,11 +1852,11 @@
         },
         "typing-extensions": {
             "hashes": [
-                "sha256:6ad00b63f849b7dcc313b70b6b304ed67b2b2963b3098a33efe18056b1a9a223",
-                "sha256:ff6b238610c747e44c268aa4bb23c8c735d665a63726df3f9431ce707f2aa768"
+                "sha256:06006244c70ac8ee83fa8282cb188f697b8db25bc8b4df07be1873c43897060c",
+                "sha256:3a8b36f13dd5fdc5d1b16fe317f5668545de77fa0b8e02006381fd49d731ab98"
             ],
             "markers": "python_version < '3.11'",
-            "version": "==4.6.0"
+            "version": "==4.6.2"
         },
         "whitenoise": {
             "hashes": [

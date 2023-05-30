@@ -59,5 +59,9 @@ Pipfile.lock: Pipfile
 lock: Pipfile.lock
 
 
+.PHONY: build
+build: lock
+
+
 .PHONY: clean
 clean:

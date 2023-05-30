@@ -32,15 +32,17 @@ from rest_framework.permissions import (
     IsAuthenticatedOrReadOnly, AllowAny, IsAuthenticated,
 )
 
-from rest.permissions import CreateOrIsAuthenticated
+from rest.permissions import CreateOrIsAuthenticatedOrReadOnly
 from rest.serializers import (
     UserSerializer, ChannelSerializer, VideoSerializer, OAuth2ClientSerializer,
     OAuth2TokenSerializer, PlaySerializer, LikeSerializer, DislikeSerializer,
+    VideoSourceSerializer, QueueSerializer,
 )
 from rest.models import (
     Video, Channel, Play, Like, Dislike, SiteOption, Brand, OAuth2Token,
-    OAuth2DeviceCode, OAuth2Client, Subscription,
+    OAuth2DeviceCode, OAuth2Client, Subscription, Queue,
 )
+from rest.filters import VideoFilter
 from rest.oauth import SERVER
 
 
@@ -93,16 +95,10 @@ def theme_js(request):
 
 
 class UserViewSet(ModelViewSet):
-    permission_classes = [CreateOrIsAuthenticated]
+    permission_classes = [CreateOrIsAuthenticatedOrReadOnly]
     serializer_class = UserSerializer
     queryset = User.objects.all()
     lookup_field = 'uid'
-
-    def get_queryset(self):
-        queryset = self.queryset \
-            .filter(pk=self.request.user.id) #\
-            #.filter(publisher__sites__in=[self.request.site])
-        return queryset
 
     def perform_create(self, serializer):
         user = serializer.save()
@@ -145,6 +141,67 @@ class UserViewSet(ModelViewSet):
         serializer.save()
         return HttpResponseRedirect(next)
 
+    @action(detail=True, permission_classes=[AllowAny])
+    def favorites(self, request, uid=None):
+        # NOTE: lists videos liked by requested user, filtered by current
+        # user's accessibility.
+        user = get_object_or_404(User, uid=uid)
+        queryset = Video.objects \
+            .for_user(request.user, annotated=True) \
+            .select_related('channel') \
+            .prefetch_related('sources') \
+            .order_by('-published')
+
+        queryset = queryset.filter(likes__user=user)
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = VideoSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = VideoSerializer(queryset, many=True)
+        return response(serializer.data)
+
+    @action(detail=True, permission_classes=[AllowAny])
+    def history(self, request, uid=None):
+        # NOTE: lists videos played by requested user, filtered by current
+        # user's accessibility.
+        user = get_object_or_404(User, uid=uid)
+        queryset = Video.objects \
+            .for_user(request.user, annotated=True) \
+            .select_related('channel') \
+            .prefetch_related('sources')
+
+        queryset = queryset \
+            .filter(plays__user=user) \
+            .order_by('-plays__created')
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = VideoSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = VideoSerializer(queryset, many=True)
+        return response(serializer.data)
+
+    @action(detail=True, permission_classes=[AllowAny])
+    def queue(self, request, uid=None):
+        user = get_object_or_404(User, uid=uid)
+        queryset = Video.objects \
+            .for_user(request.user, annotated=True) \
+            .select_related('channel') \
+            .prefetch_related('sources') \
+            .filter(queued__user=user, queued__position__isnull=False) \
+            .order_by('queued__position')
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = VideoSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = VideoSerializer(queryset, many=True)
+        return response(serializer.data)
+
 
 class ChannelViewSet(ModelViewSet):
     permission_classes = [AllowAny]
@@ -152,69 +209,57 @@ class ChannelViewSet(ModelViewSet):
     lookup_field = 'uid'
 
     def get_queryset(self):
-        queryset = Channel.objects.all()
+        return Channel.objects.for_user(self.request.user)
 
-        if not self.request.user.is_authenticated:
-            queryset = queryset.filter(is_public=True)
+    @action(detail=True)
+    def videos(self, request, uid):
+        queryset = self.get_queryset()
 
-        else:
-            # NOTE: we select all channels that relate to a package that the
-            # user subscribes to.        
-            subbed = Subscription.objects.filter(
-                package__channels__id=OuterRef('id'),
-                user=self.request.user
-            )
+        try:
+            channel = queryset.get(uid=uid)
 
-            queryset = queryset.filter(Exists(subbed))
-        return queryset
+        except Channel.DoesNotExist:
+            raise Http404()
+
+        videos = Video.objects \
+            .filter(channel=channel) \
+            .default_annotations(user=request.user)
+
+        page = self.paginate_queryset(videos)
+        if page is not None:
+            serializer = VideoSerializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = VideoSerializer(videos, many=True)
+        return Response(serializer.data)
 
 
 class VideoViewSet(ModelViewSet):
     permission_classes = [AllowAny]
     serializer_class = VideoSerializer
     lookup_field = 'uid'
+    filter_class = VideoFilter
 
     def get_queryset(self):
         queryset = Video.objects \
+            .for_user(self.request.user, annotated=True) \
+            .select_related('channel') \
             .prefetch_related('sources') \
             .order_by('-published')
 
-        if not self.request.user.is_authenticated:
-            queryset = queryset.filter(channel__id_public=True)
-
-        else:
-            subbed = Subscription.objects.filter(
-                package__channels__id=OuterRef('channel_id'),
-                user=self.request.user
-            )
-
-            queryset = queryset.annotate(
-                played=Exists(
-                    Play.objects.filter(
-                        video_id=OuterRef('pk'),
-                        user=self.request.user)
-                ),
-                liked=Exists(
-                    Like.objects.filter(
-                        video_id=OuterRef('pk'),
-                        user=self.request.user)
-                ),
-                disliked=Exists(
-                    Dislike.objects.filter(
-                        video_id=OuterRef('pk'),
-                        user=self.request.user)
-                ),
-            ).filter(Exists(subbed))
-
-        channel_uid = self.request.query_params.get('channel')
-        if channel_uid is not None:
-            channel = get_object_or_404(Channel,
-                publisher__sites__in=[self.request.site],
-                uid=channel_uid,
-            )
-            queryset = queryset.filter(channel=channel)
-
         return queryset
+
+    @action(detail=True)
+    def sources(self, request, uid):
+        queryset = self.get_queryset()
+        try:
+            video = queryset.get(uid=uid)
+
+        except Video.DoesNotExist:
+            raise Http404()
+
+        serializer = VideoSourceSerializer(video.sources, many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=['POST'], permission_classes=[IsAuthenticated])
     def like(self, request, uid):
@@ -239,6 +284,25 @@ class VideoViewSet(ModelViewSet):
         serializer = PlaySerializer(play, many=False)
         status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
         return Response(serializer.data, status=status)
+
+    @action(detail=True, methods=['POST'], permission_classes=[IsAuthenticated])
+    def enqueue(self, request, uid):
+        position = request.args.get('position', 'tail')
+        video = get_object_or_404(Video, uid=uid)
+        q = Queue(video=video, user=request.user)
+        if position == 'tail':
+            q = Queue.objects.append(q)
+        else:
+            q = Queue.objects.prepend(q)
+        serializer = QueueSerializer(q, many=False)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['POST'], permission_classes=[IsAuthenticated])
+    def dequeue(self, request, uid):
+        video = get_object_or_404(Video, uid=uid)
+        q = get_object_or_404(Queue, video=video, user=request.user)
+        Queue.objects.remove(q)
+        return Response('', status=status.HTTP_204_NO_CONTENT)
 
 
 class OAuthAuthCodeView(APIView):

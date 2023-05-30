@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh
 
 PROXY_CONF="/var/run/squid/proxies.conf"
 SQUID_CONF="/etc/squid/squid.conf"
@@ -16,7 +16,7 @@ fi
 
 function download_proxy_list() {
     # download proxy list.
-    rm ${PROXY_CONF}
+    rm -f ${PROXY_CONF}
     I=0
     for LINE in $(wget -q -O - "https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt");
     do
@@ -32,27 +32,32 @@ function download_proxy_list() {
 # htpasswd -cb /etc/squid/passwd "${USERNAME}" "${PASSWORD}"
 chown squid:squid /dev/stdout
 
-if [ ! -f ${PROXY_CONF} || $(find ${PROXY_CONF} -mtime +1) ]; then
+if [ ! -f ${PROXY_CONF} ] || $(find ${PROXY_CONF} -mtime +1); then
     download_proxy_list
 fi
 
 # start squid
+rm -f ${SQUID_PID_FILE}
 exec $(which squid) -NYCd 1 &
+
+# wait for pid file
+while [ ! -f ${SQUID_PID_FILE} ]; do
+    sleep 1
+done
+SQUID_PID=$(cat ${SQUID_PID_FILE})
 
 while [ true ]; do
     # refresh proxy list each day.
-    sleep 1d
-    PID=${!}
-
-    SQUID_PID=$(cat ${SQUID_PID_FILE})
+    sleep 1d &
+    SLEEP_PID=${!}
 
     # busy loop while squid and sleep execute.
-    while [ kill -0 ${PID} && kill -0 ${SQUID_PID} ]; do
+    while kill -0 ${SLEEP_PID} && kill -0 ${SQUID_PID}; do
         sleep 1
     done
 
     # if squid exited, break.
-    if [ ! kill -0 ${SQUID_PID} ]; then
+    if ! kill -0 ${SQUID_PID}; then
         break
     fi
 

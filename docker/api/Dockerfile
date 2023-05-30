@@ -49,8 +49,6 @@ RUN mkdir -p /home/nobody
 RUN chown nobody:nogroup /home/nobody
 RUN usermod -s /bin/sh -d /home/nobody nobody
 
-RUN pyppeteer-install
-
 ENTRYPOINT [ "/entrypoint.sh" ]
 
 

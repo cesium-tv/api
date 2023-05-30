@@ -100,14 +100,14 @@ services:
 
   celery:
     image: cesium
-    command: python manage.py celery
+    command: celery
     depends_on:
       - db
       - redis
       - es
       - squid
-    extra_hosts:
-      - cesium.tv:192.168.1.239
+#    extra_hosts:
+#      - cesium.tv:192.168.1.239
     volumes:
       - ./docker/api/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app:ro
@@ -121,9 +121,16 @@ services:
       - CELERY_UID=65534
       - CELERY_GID=65534
       - VIDEOSRC_PROXY=http://squid:3128
+      - PYPPETEER_BROWSER_URL=http://chrome:9222
     env_file:
       # See .env.template for instructions.
       - .env
+
+  chrome:
+    image: zenika/alpine-chrome
+    security_opt:
+      - seccomp:./docker/chrome/chrome.json
+    command: ['--proxy-server=http://squid:3128', '--remote-debugging-port=9222', '--remote-debugging-address=0.0.0.0']
 
   flower:
     image: mher/flower

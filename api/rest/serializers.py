@@ -5,7 +5,7 @@ from drf_recaptcha.fields import ReCaptchaV2Field
 
 from rest.models import (
     Channel, VideoSource, Video,  OAuth2Token, OAuth2Client, OAuth2Code, Play,
-    Like, Dislike, Subscription,
+    Like, Dislike, Subscription, Queue,
 )
 
 User = get_user_model()
@@ -20,6 +20,7 @@ class UserSerializer(serializers.ModelSerializer):
         }
 
     uid = serializers.CharField(read_only=True)
+    email = serializers.SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
         fields = kwargs.pop('fields', None)
@@ -35,6 +36,13 @@ class UserSerializer(serializers.ModelSerializer):
             k: v for k, v in validated_data.items()
         }
         return User.objects.create_user(is_active=False, **kwargs)
+
+    def get_email(self, obj):
+        # NOTE: only reveal email for logged in user, no other user's
+        # email addresses are provided.
+        request = self.context.get('request')
+        if request and obj == request.user:
+            return obj.email
 
 
 class UserConfirmSerializer(serializers.Serializer):
@@ -93,13 +101,28 @@ class VideoSerializer(serializers.ModelSerializer):
         model = Video
         fields = (
             'uid', 'channel', 'title', 'poster', 'duration', 'published',
-            'sources', 'created',
+            'sources', 'created', 'is_played', 'is_liked', 'is_disliked',
+            'n_plays', 'n_likes', 'n_dislikes',
         )
 
     uid = serializers.CharField(read_only=True)
     channel = ChannelSerializer(read_only=True)
     sources = VideoSourceSerializer(many=True, read_only=True)
+    is_played = serializers.SerializerMethodField()
+    is_liked = serializers.SerializerMethodField()
+    is_disliked = serializers.SerializerMethodField()
+    n_plays = serializers.IntegerField()
+    n_likes = serializers.IntegerField()
+    n_dislikes = serializers.IntegerField()
 
+    def get_is_played(self, obj):
+        return getattr(obj, 'is_played', False)
+
+    def get_is_liked(self, obj):
+        return getattr(obj, 'is_liked', False)
+
+    def get_is_disliked(self, obj):
+        return getattr(obj, 'is_disliked', False)
 
 
 class PlaySerializer(serializers.ModelSerializer):
@@ -126,6 +149,16 @@ class DislikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dislike
         fields = ('uid', 'user', 'video', 'created')
+
+    uid = serializers.CharField(read_only=True)
+    user = UserSerializer(many=False)
+    video = VideoSerializer(many=False)
+
+
+class QueueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Queue
+        fields = ('uid', 'user', 'video', 'position', 'created')
 
     uid = serializers.CharField(read_only=True)
     user = UserSerializer(many=False)
