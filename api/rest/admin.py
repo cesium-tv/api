@@ -15,7 +15,7 @@ from bitfield import BitField
 from bitfield.forms import BitFieldCheckboxSelectMultiple
 
 from rest.models import (
-    User, Channel, Video, VideoSource, Tag, Subscription, SiteOption,
+    User, Channel, Video, VideoSource, Subscription, SiteOption,
     MenuItem, Brand, OAuth2Client, StripeAccount, Package,
 )
 
@@ -190,11 +190,6 @@ class VideoAdmin(admin.ModelAdmin):
 @admin.register(VideoSource)
 class VideoSourceAdmin(admin.ModelAdmin):
     list_display = ("dimension", "video", "url", 'created', 'updated')
-
-
-@admin.register(Tag)
-class TagAdmin(admin.ModelAdmin):
-    pass
 
 
 @admin.register(Brand)

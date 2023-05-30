@@ -44,7 +44,7 @@ fixtures:
 
 .PHONY: shell
 shell:
-	${DOCKER_COMPOSE} run api python3 manage.py shell
+	${DOCKER_COMPOSE} run api python3 manage.py shell_plus --print-sql
 
 
 .PHONY: dbshell

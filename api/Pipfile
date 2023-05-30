@@ -26,10 +26,6 @@ authlib = "*"
 django-media-fixtures = {ref = "e34d578ebdced10e904d01b982988fd1eaf16a87", git = "https://github.com/btimby/django-media-fixtures.git"}
 libsass = "*"
 csscompressor = "*"
-django-elasticsearch-dsl = "*"
-django-haystack = {extras = ["elasticsearch"], version = "*"}
-django-elasticsearch-debug-toolbar = "*"
-celery-haystack-ng = "*"
 django-nacl-fields = {ref = "2742c15cbb66fe2c726cf887bd90e54678036aa7", git = "https://github.com/btimby/django-nacl-fields.git"}
 django-picklefield = "*"
 django-bitfield = "*"

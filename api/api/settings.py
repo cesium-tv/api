@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sites',
+    'django.contrib.postgres',
     'django_extensions',
     'django_celery_beat',
     'djcelery_email',
@@ -70,10 +71,8 @@ INSTALLED_APPS = [
     'rest_framework_filters',
     'corsheaders',
     'colorfield',
-    'haystack',
     'nacl_encrypted_fields',
     'rest',
-    'celery_haystack',
 ]
 
 DEBUG_TOOLBAR_PANELS = [
@@ -95,8 +94,6 @@ DEBUG_TOOLBAR_PANELS = [
 
 if DEBUG:
     INSTALLED_APPS.insert(3, 'debug_toolbar')
-    INSTALLED_APPS.insert(4, 'elastic_panel',)
-    DEBUG_TOOLBAR_PANELS.append('elastic_panel.panel.ElasticDebugPanel')
 
 
 MIDDLEWARE = [
@@ -288,27 +285,9 @@ AUTHLIB_OAUTH2_PROVIDER = {
     }
 }
 
-MEDIA_FIXTURE_FOLDERNAME='media'
+MEDIA_FIXTURE_FOLDERNAME = 'media'
 DJANGO_SCSS_PATH = os.getenv('DJANGO_SCSS_PATH')
 DJANGO_CSS_MINIFY = not DEBUG
-
-DJANGO_ES_HOST = os.getenv('DJANGO_ES_HOST', 'es')
-DJANGO_ES_PORT = int(os.getenv('DJANGO_ES_PORT', '9200'))
-DJANGO_ES_INSECURE_TRANSPORT = os.getenv('DJANGO_ES_INSECURE_TRANSPORT', '').lower() in ('true', 'on', 'yes')
-HAYSTACK_CONNECTIONS = {
-    'default': {
-        'ENGINE': 'haystack.backends.elasticsearch7_backend.Elasticsearch7SearchEngine',
-        'URL': f'http://{DJANGO_ES_HOST}:{DJANGO_ES_PORT}/',
-        'INDEX_NAME': 'api',
-#        'KWARGS': {'verify_certs': DJANGO_ES_INSECURE_TRANSPORT},
-    },
-}
-
-# TODO: future improvement, batches...
-# Would need to implement custom signal handler, and utilize ES _bulk endpoint
-# with multiple records combined.
-# https://pypi.org/project/celery-batches/
-HAYSTACK_SIGNAL_PROCESSOR = 'celery_haystack.signals.CelerySignalProcessor'
 
 STRIPE_CLIENT_ID = os.getenv('DJANGO_STRIPE_CLIENT_ID')
 STRIPE_PUBLISHABLE_KEY = os.getenv('DJANGO_STRIPE_PUBLISHABLE_KEY')

@@ -5,7 +5,6 @@ DJANGO_MEDIA_ROOT=${DJANGO_MEDIA_ROOT:-/tmp}
 
 /wait-for ${DJANGO_DB_HOST}:${DJANGO_DB_PORT}
 /wait-for ${DJANGO_REDIS_HOST}:${DJANGO_REDIS_PORT}
-/wait-for ${DJANGO_ES_HOST}:${DJANGO_ES_PORT}
 
 if [ "${CMD}" == "api" ]; then
     DJANGO_HOST=${DJANGO_HOST:-0.0.0.0}

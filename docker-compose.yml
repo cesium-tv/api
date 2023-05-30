@@ -15,7 +15,6 @@ services:
     depends_on:
       - db
       - redis
-      - es
     ports:
       - 8001:8000
     networks:
@@ -28,6 +27,7 @@ services:
       - media:/media
     environment:
       - DJANGO_DEBUG=true
+      - DJANGO_MEDIA_ROOT=/media
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
       - DJANGO_SU_USERNAME=btimby
@@ -35,9 +35,6 @@ services:
       - DJANGO_SU_PASSWORD=password
       - DJANGO_ALLOWED_HOSTS=.cesium.tv,localhost,api
       - AUTHLIB_INSECURE_TRANSPORT=true
-      - DJANGO_ES_INSECURE_TRANSPORT=true
-      - DJANGO_ES_HOST=es
-      - DJANGO_ES_PORT=9200
       - VIDEOSRC_PROXY=http://squid:3128
     env_file:
       # See .env.template for instructions.
@@ -90,8 +87,6 @@ services:
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
       - DJANGO_ES_INSECURE_TRANSPORT=true
-      - DJANGO_ES_HOST=es
-      - DJANGO_ES_PORT=9200
       - CELERY_UID=65534
       - CELERY_GID=65534
     env_file:
@@ -104,7 +99,6 @@ services:
     depends_on:
       - db
       - redis
-      - es
       - squid
 #    extra_hosts:
 #      - cesium.tv:192.168.1.239
@@ -116,8 +110,6 @@ services:
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
       - DJANGO_ES_INSECURE_TRANSPORT=true
-      - DJANGO_ES_HOST=es
-      - DJANGO_ES_PORT=9200
       - CELERY_UID=65534
       - CELERY_GID=65534
       - VIDEOSRC_PROXY=http://squid:3128
@@ -139,16 +131,6 @@ services:
       - CELERY_BROKER_URL=redis://redis:6379/0
     ports:
       - "8888:8888"
-
-  es:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.4.3-amd64
-    ports:
-      - 9200:9200
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - xpack.security.enrollment.enabled=false
-      - xpack.security.transport.ssl.enabled=false
 
   db:
     image: postgres:14-alpine

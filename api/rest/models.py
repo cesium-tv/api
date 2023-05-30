@@ -21,6 +21,8 @@ from django.core.files.base import ContentFile
 from django.template import Context
 from django.template.loader import get_template
 from django.contrib.postgres.fields import ArrayField
+from django.contrib.postgres.search import SearchVectorField
+from django.contrib.postgres.indexes import GinIndex
 from django.contrib.sites.models import Site
 from django.utils.functional import cached_property
 from django.utils.encoding import force_str
@@ -454,6 +456,11 @@ class ChannelManager(HashidsManager):
 
 
 class Channel(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
+    class Meta:
+        indexes = [
+            GinIndex(fields=['search'])
+        ]
+
     user = models.ForeignKey(
         User, related_name='channels', on_delete=models.CASCADE)
     task = models.ForeignKey(
@@ -470,6 +477,7 @@ class Channel(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
     title = models.CharField(max_length=128, null=True, blank=True)
     description = models.TextField(null=True, blank=True)
     poster = models.ImageField(null=True, blank=True)
+    search = SearchVectorField(null=True)
 
     objects = ChannelManager()
 
@@ -506,68 +514,6 @@ class ChannelMeta(CreatedUpdatedMixin, models.Model):
     channel = models.ForeignKey(
         Channel, related_name='meta', on_delete=models.CASCADE)
     metadata = models.JSONField()
-
-
-class TagQuerySet(models.QuerySet):
-    # NOTE: read-only model, should not be modified once created.
-    def update(self, *args, **kwargs):
-        raise NotImplementedError('Tags are immutable.')
-
-    def delete(self, *args, **kwargs):
-        raise NotImplementedError('Tags are immutable.')
-
-
-class TagManager(models.Manager):   
-    def get_queryset(self):
-        # NOTE: use custom queryset.
-        return TagQuerySet(self.model, using=self._db)
-
-    def add_to(self, obj, tags):
-        for name in tags:
-            obj.tags.add(self.get_or_create(name=name)[0].pk)
-            LOGGER.debug('Added tag %s to %s', name, obj)
-
-    def remove_from(self, obj, tags=None):
-        if tags is None:
-            obj.tags.clear()
-            LOGGER.debug('Removed all tags from %s', obj)
-            return
-
-        for name in tags:
-            try:
-                obj.tags.remove(Tag.objects.get(name=name))
-            except Tag.DoesNotExist:
-                pass
-            else:
-                LOGGER.debug('Removed tag %s from %s', name, obj)
-
-    def merge_to(self, obj, tags=None):
-        if tags is None:
-            obj.tags.clear()
-            LOGGER.debug('Removed all tags from %s', obj)
-            return
-
-        e, n = set(obj.tags.all().values_list('name', flat=True)), set(tags)
-
-        self.add_to(obj, n.difference(e))
-        self.remove_from(obj, e.difference(n))
-
-
-class Tag(models.Model):
-    # TODO: make immutable.
-    name = models.TextField(
-        max_length=32, null=False, unique=True, db_collation='ci')
-
-    objects = TagManager()
-
-    def __str__(self):
-        return self.name
-
-    def save(self, *args, **kwargs):
-        # NOTE: should not be modified once created.
-        if self.pk and 'force_insert' not in kwargs:
-            raise NotImplementedError('Tags are immutable.')
-        return super().save(*args, **kwargs)
 
 
 class VideoQuerySet(models.QuerySet):
@@ -610,7 +556,6 @@ class VideoManager(HashidsManager):
         extern_id = defaults.pop('extern_id')
 
         # Used later in separate models.
-        tags = defaults.pop('tags')
         original = defaults.pop('original')
         # Must be handled specially
         del defaults['sources']
@@ -621,7 +566,6 @@ class VideoManager(HashidsManager):
         video, created = Video.objects.update_or_create(
             channel=channel, extern_id=extern_id, defaults=defaults)
 
-        Tag.objects.merge_to(video, tags)
         video.set_metadata(original)
         VideoSource.objects.from_dataclass(video, data.sources)
 
@@ -648,7 +592,11 @@ class VideoManager(HashidsManager):
 
 
 class Video(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
-    tags = models.ManyToManyField(Tag, related_name='tagged', blank=True)
+    class Meta:
+        indexes = [
+            GinIndex(fields=['search']),
+        ]
+
     channel = models.ForeignKey(
         Channel, related_name='videos', on_delete=models.CASCADE)
     extern_id = models.CharField(max_length=128, unique=True)
@@ -656,10 +604,13 @@ class Video(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
     description = models.TextField(null=True, blank=True)
     poster = models.URLField()
     duration = models.PositiveIntegerField()
-    total_plays = models.PositiveIntegerField(default=0)
-    total_likes = models.PositiveIntegerField(default=0)
-    total_dislikes = models.PositiveIntegerField(default=0)
     published = models.DateTimeField(default=timezone.now)
+    tags = ArrayField(
+        models.CharField(max_length=32, db_collation='ci'),
+        null=True,
+        blank=True,
+    )
+    search = SearchVectorField(null=True)
 
     objects = VideoManager()
 

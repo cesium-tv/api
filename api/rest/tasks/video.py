@@ -15,7 +15,7 @@ from videosrc import crawl_sync
 
 from api.celery import task
 from rest.models import (
-    Subscription, Channel, ChannelMeta, Video, VideoMeta, Tag, VideoSource,
+    Subscription, Channel, ChannelMeta, Video, VideoMeta, VideoSource,
     VideoSourceMeta,
 )
 
