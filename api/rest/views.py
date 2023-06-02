@@ -214,7 +214,7 @@ class ChannelViewSet(ModelViewSet):
     filterset_class = ChannelFilterSet
 
     def get_queryset(self):
-        return Channel.objects.for_user(self.request.user)
+        return Channel.objects.for_user(self.request.user, annotated=True)
 
     @action(detail=True)
     def videos(self, request, uid):

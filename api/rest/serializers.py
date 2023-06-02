@@ -56,13 +56,16 @@ class UserConfirmSerializer(serializers.Serializer):
     def validate(self, attrs):
         try:
             user = User.objects.get(uid=self.uid)
+
         except User.DoesNotExist:
             raise serializers.ValidationError('Invalid signature')
+
         try:
             user.validate_confirmation(attrs['ts'], attrs['signature'])
 
         except ValueError as e:
             raise serializers.ValidationError('Invalid signature')
+
         return attrs
 
     def create(self, validated_data):
@@ -76,15 +79,18 @@ class ChannelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Channel
         fields = (
-            'uid', 'name', 'url', 'subscribers', 'created', 'n_videos',
+            'uid', 'name', 'url', 'n_subscribers', 'created', 'n_videos',
         )
+
+    def __init__(self, *args, **kwargs):
+        exclude_fields = kwargs.pop('exclude_fields', [])
+        super().__init__(*args, **kwargs)
+        for field_name in exclude_fields:
+            self.fields.pop(field_name)
 
     uid = serializers.CharField(read_only=True)
     n_videos = serializers.IntegerField()
-    subscribers = serializers.SerializerMethodField()
-
-    def get_subscribers(self, obj):
-        return Subscription.objects.filter(package__channels__in=(obj,)).count()
+    n_subscribers = serializers.IntegerField()
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -108,13 +114,15 @@ class VideoSerializer(serializers.ModelSerializer):
         model = Video
         fields = (
             'uid', 'channel', 'title', 'poster', 'duration', 'published',
-            'sources', 'created', 'is_played', 'is_liked', 'is_disliked',
+            'sources', 'tags', 'created', 'is_played', 'is_liked', 'is_disliked',
             'n_plays', 'n_likes', 'n_dislikes',
         )
 
     uid = serializers.CharField(read_only=True)
-    channel = ChannelSerializer(read_only=True)
+    channel = ChannelSerializer(
+        read_only=True, exclude_fields=('n_videos', 'n_subscribers'))
     sources = VideoSourceSerializer(many=True, read_only=True)
+    tags = serializers.StringRelatedField(many=True)
     is_played = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
     is_disliked = serializers.SerializerMethodField()

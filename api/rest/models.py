@@ -428,8 +428,10 @@ class Package(CreatedUpdatedMixin, models.Model):
 
 class ChannelQuerySet(models.QuerySet):
     def default_annotations(self):
-        queryset = self.annotate(n_videos=Count('videos'))
-        return queryset
+        return self.annotate(
+            n_videos=Count('videos'),
+            n_subscribers=Count('packages__subscriptions'),
+        )
 
 
 class ChannelManager(HashidsManager):
@@ -448,10 +450,10 @@ class ChannelManager(HashidsManager):
             extern_id=extern_id, defaults=defaults)
         channel.set_metadata(original)
 
-    def for_user(self, user, annotate=True):
+    def for_user(self, user, annotated=True):
         queryset = self.all()
 
-        if annotate:
+        if annotated:
             queryset = queryset.default_annotations()
 
         if not user.is_authenticated:
@@ -583,7 +585,6 @@ class TagManager(models.Manager):
 
 
 class Tag(models.Model):
-    # TODO: make immutable.
     name = models.TextField(
         max_length=32, null=False, unique=True, db_collation='ci')
 
@@ -674,7 +675,7 @@ class VideoManager(HashidsManager):
                 user=user
             )
 
-            queryset = queryset.filter(Exists(subbed) | Q(is_public=True))
+            queryset = queryset.filter(Exists(subbed) | Q(channel__is_public=True))
 
         return queryset
 

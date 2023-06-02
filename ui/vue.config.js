@@ -39,6 +39,10 @@ module.exports = {
           target: 'http://api:8000/',
           changeOrigin: true
         },
+        '/__debug__': {
+          target: 'http://api:8000/',
+          changeOrigin: true
+        },
       },
     },
   },

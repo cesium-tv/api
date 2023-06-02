@@ -1,16 +1,36 @@
 import django_filters as filters
+from django_filters.constants import EMPTY_VALUES
 
 from django.contrib.postgres.search import SearchQuery
-from django.db.models import Count
+from django.db.models import Count, Func
 
 from rest.models import User, Video, Channel, Package, Tag
 
 
 class SearchFilter(filters.CharFilter):
+    # NOTE: performs full-text search.
+    # TODO: ranking excerpts etc.
     def filter(self, queryset, value):
-        if value:
-            queryset = queryset.filter(search=SearchQuery(value))
-        return queryset
+        if value in EMPTY_VALUES:
+            return queryset
+        return queryset.filter(search=SearchQuery(value))
+
+
+class CICharFilter(filters.CharFilter):
+    # Searches with collation compatible with CI fields.
+    def filter(self, queryset, value):
+        if value in EMPTY_VALUES:
+            return queryset
+        value_ci = Func(
+            self.field_name,
+            function='tr-TR-x-icu',
+            template='(%(expressions)s) COLLATE "%(function)s"',
+        )
+        annotated = '%s_ci' % self.field_name
+        lookup = '%s__%s' % (annotated, self.lookup_expr)
+        return queryset \
+            .annotate(**{annotated: value_ci}) \
+            .filter(**{lookup: value})
 
 
 class UserFilterSet(filters.FilterSet):
@@ -33,7 +53,6 @@ class VideoFilterSet(filters.FilterSet):
         fields = {
             'duration': ['exact', 'gt', 'gte', 'lt', 'lte'],
             'published': ['exact', 'gt', 'gte', 'lt', 'lte'],
-            'tags__name': ['exact', 'startswith', 'contains', 'icontains'],
         }
 
     order = filters.OrderingFilter(
@@ -45,6 +64,12 @@ class VideoFilterSet(filters.FilterSet):
     )
 
     search = SearchFilter(field_name='search')
+    tags__name = filters.CharFilter(
+        field_name='tags__name', lookup_expr='exact')
+    tags__name__startswith = CICharFilter(
+        field_name='tags__name', lookup_expr='startswith')
+    tags__name__contains = CICharFilter(
+        field_name='tags__name', lookup_expr='contains')
     n_plays = filters.NumberFilter(field_name='n_plays', lookup_expr='exact')
     n_plays__gt = filters.NumberFilter(field_name='n_plays', lookup_expr='gt')
     n_plays__gte = filters.NumberFilter(
