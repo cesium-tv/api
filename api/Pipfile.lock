@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "b4aa7e7d7681d2447b10827e1e004f4b82abf4d89e5b140201a741327041dde8"
+            "sha256": "5f64ee7631d49fcf0545d79fc09e66e56c4f6a538115a76d6d6e4d17d3be17ec"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -571,7 +571,7 @@
                 "sha256:2fe15f78108475eda525692813205fa6f9e8c1caf1ae65daa5862d403c6dbf00",
                 "sha256:d12d8e0fc6d3eb26641e553e5d53b191eb8cec611427d4bdce0becb1f7c172b5"
             ],
-            "markers": "python_version >= '3.7'",
+            "index": "pypi",
             "version": "==23.2"
         },
         "django-ipware": {
@@ -635,10 +635,6 @@
             ],
             "index": "pypi",
             "version": "==3.14.0"
-        },
-        "djangorestframework-filters": {
-            "git": "https://github.com/cesium-tv/django-rest-framework-filters.git",
-            "ref": "47dff32f4c1f5f84ae08ab4fcb7c14dd48ca83d8"
         },
         "drf-recaptcha": {
             "hashes": [
@@ -1358,7 +1354,7 @@
         },
         "snscrape": {
             "git": "https://github.com/JustAnotherArchivist/snscrape.git",
-            "ref": "e4c7644bf5e4917107b31b353cabfdaae906429f"
+            "ref": "df27cceb5d74769bd3718792b06ea65688b96256"
         },
         "soupsieve": {
             "hashes": [

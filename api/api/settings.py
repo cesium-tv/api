@@ -68,7 +68,7 @@ INSTALLED_APPS = [
     'drf_recaptcha',
     'mail_templated',
     'rest_framework',
-    'rest_framework_filters',
+    'django_filters',
     'corsheaders',
     'colorfield',
     'nacl_encrypted_fields',
@@ -246,7 +246,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': 100,
     'DEFAULT_FILTER_BACKENDS': (
-        'rest_framework_filters.backends.RestFrameworkFilterBackend',
+        'django_filters.rest_framework.DjangoFilterBackend',
     ),
 }
 

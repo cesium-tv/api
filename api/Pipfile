@@ -31,7 +31,7 @@ django-picklefield = "*"
 django-bitfield = "*"
 stripe = "*"
 videosrc = {ref = "60d8c5a66e7b6c00e7c9d76ca2528cc13ed1e816", git = "https://github.com/cesium-tv/videosrc.git"}
-djangorestframework_filters = {ref = "47dff32f4c1f5f84ae08ab4fcb7c14dd48ca83d8", git = "https://github.com/cesium-tv/django-rest-framework-filters.git"}
+django-filter = "*"
 
 [dev-packages]
 flake8 = "*"

@@ -36,13 +36,16 @@ from rest.permissions import CreateOrIsAuthenticatedOrReadOnly
 from rest.serializers import (
     UserSerializer, ChannelSerializer, VideoSerializer, OAuth2ClientSerializer,
     OAuth2TokenSerializer, PlaySerializer, LikeSerializer, DislikeSerializer,
-    VideoSourceSerializer, QueueSerializer,
+    VideoSourceSerializer, QueueSerializer, TagSerializer,
 )
 from rest.models import (
     Video, Channel, Play, Like, Dislike, SiteOption, Brand, OAuth2Token,
-    OAuth2DeviceCode, OAuth2Client, Subscription, Queue,
+    OAuth2DeviceCode, OAuth2Client, Subscription, Queue, Tag,
 )
-from rest.filters import VideoFilter
+from rest.filters import (
+    UserFilterSet, VideoFilterSet, ChannelFilterSet, PackageFilterSet,
+    TagFilterSet,
+)
 from rest.oauth import SERVER
 
 
@@ -99,6 +102,7 @@ class UserViewSet(ModelViewSet):
     serializer_class = UserSerializer
     queryset = User.objects.all()
     lookup_field = 'uid'
+    filterset_class = UserFilterSet
 
     def perform_create(self, serializer):
         user = serializer.save()
@@ -207,6 +211,7 @@ class ChannelViewSet(ModelViewSet):
     permission_classes = [AllowAny]
     serializer_class = ChannelSerializer
     lookup_field = 'uid'
+    filterset_class = ChannelFilterSet
 
     def get_queryset(self):
         return Channel.objects.for_user(self.request.user)
@@ -234,11 +239,21 @@ class ChannelViewSet(ModelViewSet):
         return Response(serializer.data)
 
 
+class TagViewSet(ModelViewSet):
+    permission_classes = [AllowAny]
+    serializer_class = TagSerializer
+    lookup_field = 'name'
+    filterset_class = TagFilterSet
+
+    def get_queryset(self):
+        return Tag.objects.default_annotations()
+
+
 class VideoViewSet(ModelViewSet):
     permission_classes = [AllowAny]
     serializer_class = VideoSerializer
     lookup_field = 'uid'
-    filter_class = VideoFilter
+    filterset_class = VideoFilterSet
 
     def get_queryset(self):
         queryset = Video.objects \
@@ -378,7 +393,6 @@ class OAuthTokenView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # import pdb; pdb.set_trace()
         return SERVER.create_token_response(request)
 
 

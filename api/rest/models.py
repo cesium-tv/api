@@ -426,7 +426,19 @@ class Package(CreatedUpdatedMixin, models.Model):
         return self.name
 
 
+class ChannelQuerySet(models.QuerySet):
+    def default_annotations(self):
+        queryset = self.annotate(n_videos=Count('videos'))
+        return queryset
+
+
 class ChannelManager(HashidsManager):
+    def get_queryset(self):
+        return ChannelQuerySet(self.model, using=self._db)
+
+    def default_annotations(self):
+        return self.get_queryset().default_annotations()
+
     def from_dataclass(self, data):
         defaults = asdict(data)
         extern_id = defaults.pop('extern_id')
@@ -436,8 +448,11 @@ class ChannelManager(HashidsManager):
             extern_id=extern_id, defaults=defaults)
         channel.set_metadata(original)
 
-    def for_user(self, user):
+    def for_user(self, user, annotate=True):
         queryset = self.all()
+
+        if annotate:
+            queryset = queryset.default_annotations()
 
         if not user.is_authenticated:
             queryset = queryset.filter(is_public=True)
@@ -450,7 +465,7 @@ class ChannelManager(HashidsManager):
                 user=user
             )
 
-            queryset = queryset.filter(Exists(subbed))
+            queryset = queryset.filter(Exists(subbed) | Q(is_public=True))
 
         return queryset
 
@@ -516,6 +531,74 @@ class ChannelMeta(CreatedUpdatedMixin, models.Model):
     metadata = models.JSONField()
 
 
+class TagQuerySet(models.QuerySet):
+    def default_annotations(self):
+        queryset = self.annotate(n_tagged=Count('tagged'))
+        return queryset
+
+    # NOTE: read-only model, should not be modified once created.
+    def update(self, *args, **kwargs):
+        raise NotImplementedError('Tags are immutable.')
+
+    def delete(self, *args, **kwargs):
+        raise NotImplementedError('Tags are immutable.')
+
+
+class TagManager(models.Manager):   
+    def get_queryset(self):
+        return TagQuerySet(self.model, using=self._db)
+
+    def default_annotations(self):
+        return self.get_queryset().default_annotations()
+
+    def add_to(self, obj, tags):
+        for name in tags:
+            obj.tags.add(self.get_or_create(name=name)[0].pk)
+            LOGGER.debug('Added tag %s to %s', name, obj)
+
+    def remove_from(self, obj, tags=None):
+        if tags is None:
+            obj.tags.clear()
+            LOGGER.debug('Removed all tags from %s', obj)
+            return
+
+        for name in tags:
+            try:
+                obj.tags.remove(Tag.objects.get(name=name))
+            except Tag.DoesNotExist:
+                pass
+            else:
+                LOGGER.debug('Removed tag %s from %s', name, obj)
+
+    def merge_to(self, obj, tags=None):
+        if tags is None:
+            obj.tags.clear()
+            LOGGER.debug('Removed all tags from %s', obj)
+            return
+
+        e, n = set(obj.tags.all().values_list('name', flat=True)), set(tags)
+
+        self.add_to(obj, n.difference(e))
+        self.remove_from(obj, e.difference(n))
+
+
+class Tag(models.Model):
+    # TODO: make immutable.
+    name = models.TextField(
+        max_length=32, null=False, unique=True, db_collation='ci')
+
+    objects = TagManager()
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        # NOTE: should not be modified once created.
+        if self.pk and 'force_insert' not in kwargs:
+            raise NotImplementedError('Tags are immutable.')
+        return super().save(*args, **kwargs)
+
+
 class VideoQuerySet(models.QuerySet):
     def default_annotations(self, user=None):
         queryset = self.annotate(
@@ -524,7 +607,7 @@ class VideoQuerySet(models.QuerySet):
                 n_dislikes=Count('dislikes'),
             )
 
-        if user:
+        if user and user.is_authenticated:
             queryset = queryset.annotate(
                 is_played=Exists(
                     Play.objects.filter(
@@ -551,11 +634,15 @@ class VideoManager(HashidsManager):
         return VideoQuerySet(
             model=self.model, using=self._db, hints=self._hints)
 
+    def default_annotations(self):
+        return self.get_queryset().default_annotations()
+
     def from_dataclass(self, channel, data):
         defaults = asdict(data)
         extern_id = defaults.pop('extern_id')
 
         # Used later in separate models.
+        tags = defaults.pop('tags')
         original = defaults.pop('original')
         # Must be handled specially
         del defaults['sources']
@@ -566,6 +653,7 @@ class VideoManager(HashidsManager):
         video, created = Video.objects.update_or_create(
             channel=channel, extern_id=extern_id, defaults=defaults)
 
+        Tag.objects.merge_to(video, tags)
         video.set_metadata(original)
         VideoSource.objects.from_dataclass(video, data.sources)
 
@@ -586,7 +674,7 @@ class VideoManager(HashidsManager):
                 user=user
             )
 
-            queryset = queryset.filter(Exists(subbed))
+            queryset = queryset.filter(Exists(subbed) | Q(is_public=True))
 
         return queryset
 
@@ -597,6 +685,7 @@ class Video(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
             GinIndex(fields=['search']),
         ]
 
+    tags = models.ManyToManyField(Tag, related_name='tagged', blank=True)
     channel = models.ForeignKey(
         Channel, related_name='videos', on_delete=models.CASCADE)
     extern_id = models.CharField(max_length=128, unique=True)
@@ -605,11 +694,6 @@ class Video(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
     poster = models.URLField()
     duration = models.PositiveIntegerField()
     published = models.DateTimeField(default=timezone.now)
-    tags = ArrayField(
-        models.CharField(max_length=32, db_collation='ci'),
-        null=True,
-        blank=True,
-    )
     search = SearchVectorField(null=True)
 
     objects = VideoManager()
