@@ -3,75 +3,134 @@ version: "3.4"
 volumes:
   db-data:
   media:
+  squid-proxies:
 
 services:
   api:
-    image: cesium/api
+    image: cesium
     build:
       dockerfile: ./docker/api/Dockerfile
+      target: django
       context: .
     depends_on:
       - db
       - redis
     ports:
-      - 8000:8000
-    extra_hosts:
-      - cesium.tv:192.168.1.239
+      - 8001:8000
+    networks:
+      default:
+        aliases:
+          - cesium.tv
     volumes:
-      - ./docker/api/entrypoint.sh:/entrypoint.sh:ro
+      - ./docker/api/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app
       - media:/media
     environment:
       - DJANGO_DEBUG=true
-      - DJANGO_DB_HOST=db
+      - DJANGO_MEDIA_ROOT=/media
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
       - DJANGO_SU_USERNAME=btimby
       - DJANGO_SU_EMAIL=btimby_indy@yahoo.com
       - DJANGO_SU_PASSWORD=password
-      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,cesium.tv,192.168.1.101
-      - DJANGO_MEDIA_ROOT=/media
+      - DJANGO_ALLOWED_HOSTS=.cesium.tv,localhost,api
       - AUTHLIB_INSECURE_TRANSPORT=true
+      - VIDEOSRC_PROXY=http://squid:3128
     env_file:
       # See .env.template for instructions.
       - .env
 
+  ui:
+    image: vue
+    build:
+      dockerfile: ./docker/api/Dockerfile
+      context: .
+      target: vue
+    depends_on:
+      - api
+    ports:
+      - 8000:8000
+    volumes:
+      - ./docker/api/entrypoint-vue.sh:/entrypoint.sh:ro
+      - ./ui:/app:ro
+
+  squid:
+    image: squid
+    build:
+      dockerfile: ./docker/squid/Dockerfile
+      context: .
+    environment:
+      - USERNAME=proxy
+      - PASSWORD=proxy
+    volumes:
+      - ./docker/squid/entrypoint.sh:/entrypoint.sh:ro
+      - ./docker/squid/squid.conf:/etc/squid/squid.conf:ro
+      - squid-proxies:/var/run/squid/
+
+  embed:
+    image: nginx:alpine
+    volumes:
+      - ./embed/:/usr/share/nginx/html/:ro
+    ports:
+      - 8080:80
+
   beat:
-    image: cesium/api
+    image: cesium
     command: beat
     depends_on:
       - db
       - redis
     volumes:
-      - ./docker/api/entrypoint.sh:/entrypoint.sh:ro
+      - ./docker/api/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app:ro
     environment:
-      - DJANGO_DB_HOST=db
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
+      - DJANGO_ES_INSECURE_TRANSPORT=true
+      - CELERY_UID=65534
+      - CELERY_GID=65534
     env_file:
       # See .env.template for instructions.
       - .env
 
   celery:
-    image: cesium/api
+    image: cesium
     command: celery
     depends_on:
       - db
       - redis
-    extra_hosts:
-      - cesium.tv:192.168.1.239
+      - squid
+#    extra_hosts:
+#      - cesium.tv:192.168.1.239
     volumes:
-      - ./docker/api/entrypoint.sh:/entrypoint.sh:ro
+      - ./docker/api/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app:ro
-      - ./vidsrc/vidsrc:/usr/local/lib/python3.10/site-packages/vidsrc:ro
     environment:
-      - DJANGO_DB_HOST=db
+      - DJANGO_DEBUG=true
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
+      - DJANGO_ES_INSECURE_TRANSPORT=true
+      - CELERY_UID=65534
+      - CELERY_GID=65534
+      - VIDEOSRC_PROXY=http://squid:3128
+      - PYPPETEER_BROWSER_URL=http://chrome:9222
     env_file:
       # See .env.template for instructions.
       - .env
+
+  chrome:
+    image: zenika/alpine-chrome
+    security_opt:
+      - seccomp:./docker/chrome/chrome.json
+    command: ['--proxy-server=http://squid:3128', '--remote-debugging-port=9222', '--remote-debugging-address=0.0.0.0']
+
+  flower:
+    image: mher/flower
+    environment:
+      - FLOWER_PORT=8888
+      - CELERY_BROKER_URL=redis://redis:6379/0
+    ports:
+      - "8888:8888"
 
   db:
     image: postgres:14-alpine

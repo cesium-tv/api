@@ -22,11 +22,16 @@ drf_recaptcha = "*"
 django-debug-toolbar = "*"
 django-cors-headers = "*"
 django-colorfield = "*"
-vidsrc = {path = "./vidsrc-0.1.0-py3-none-any.whl"}
 authlib = "*"
-django-media-fixtures = {ref = "28897a9b751c72739c331e6922f5cde9302a1202", git = "https://github.com/danbim/django-media-fixtures.git"}
+django-media-fixtures = {ref = "e34d578ebdced10e904d01b982988fd1eaf16a87", git = "https://github.com/btimby/django-media-fixtures.git"}
 libsass = "*"
 csscompressor = "*"
+django-nacl-fields = {ref = "2742c15cbb66fe2c726cf887bd90e54678036aa7", git = "https://github.com/btimby/django-nacl-fields.git"}
+django-picklefield = "*"
+django-bitfield = "*"
+stripe = "*"
+videosrc = {ref = "60d8c5a66e7b6c00e7c9d76ca2528cc13ed1e816", git = "https://github.com/cesium-tv/videosrc.git"}
+django-filter = "*"
 
 [dev-packages]
 flake8 = "*"

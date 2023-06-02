@@ -19,7 +19,9 @@
     "pk": 1,
     "fields": {
       "option": 1,
-      "name": "search"
+      "name": "search",
+      "created": "2022-09-01T20:10:10.827Z",
+      "updated": "2022-09-01T20:10:10.827Z"
     }
   },
   {
@@ -27,7 +29,9 @@
     "pk": 2,
     "fields": {
       "option": 1,
-      "name": "home"
+      "name": "home",
+      "created": "2022-09-01T20:10:10.827Z",
+      "updated": "2022-09-01T20:10:10.827Z"
     }
   },
   {
@@ -35,7 +39,9 @@
     "pk": 3,
     "fields": {
       "option": 1,
-      "name": "resume"
+      "name": "resume",
+      "created": "2022-09-01T20:10:10.827Z",
+      "updated": "2022-09-01T20:10:10.827Z"
     }
   },
   {

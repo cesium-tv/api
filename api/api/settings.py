@@ -34,16 +34,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-8cbj*@yl)w6(=y%yksh_g1+*3maxm)tp8g7&g%gejj^v)+vi2h'
+SECRET_KEY = get_from_env_or_file(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-8cbj*@yl)w6(=y%yksh_g1+*3maxm)tp8g7&g%gejj^v)+vi2h')
 
 TEST = 'test' in sys.argv
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DJANGO_DEBUG', None) == 'true' and not TEST
+DEBUG = os.getenv('DJANGO_DEBUG', '').lower() in ('on', 'true', 'yes') and \
+        not TEST
 
 ALLOWED_HOSTS = [
     s.strip() for s in os.getenv(
-        'DJANGO_ALLOWED_HOSTS', '.cesium.tv').split(',')
+        'DJANGO_ALLOWED_HOSTS', 'localhost,cesium.tv,.cesium.tv').split(',')
 ]
 
 
@@ -57,6 +60,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sites',
+    'django.contrib.postgres',
     'django_extensions',
     'django_celery_beat',
     'djcelery_email',
@@ -64,10 +68,30 @@ INSTALLED_APPS = [
     'drf_recaptcha',
     'mail_templated',
     'rest_framework',
+    'django_filters',
     'corsheaders',
     'colorfield',
+    'nacl_encrypted_fields',
     'rest',
 ]
+
+DEBUG_TOOLBAR_PANELS = [
+    'debug_toolbar.panels.history.HistoryPanel',
+    'debug_toolbar.panels.versions.VersionsPanel',
+    'debug_toolbar.panels.timer.TimerPanel',
+    'debug_toolbar.panels.settings.SettingsPanel',
+    'debug_toolbar.panels.headers.HeadersPanel',
+    'debug_toolbar.panels.request.RequestPanel',
+    'debug_toolbar.panels.sql.SQLPanel',
+    'debug_toolbar.panels.staticfiles.StaticFilesPanel',
+    'debug_toolbar.panels.templates.TemplatesPanel',
+    'debug_toolbar.panels.cache.CachePanel',
+    'debug_toolbar.panels.signals.SignalsPanel',
+    'debug_toolbar.panels.logging.LoggingPanel',
+    'debug_toolbar.panels.redirects.RedirectsPanel',
+    'debug_toolbar.panels.profiling.ProfilingPanel',
+]
+
 if DEBUG:
     INSTALLED_APPS.insert(3, 'debug_toolbar')
 
@@ -108,6 +132,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'api.wsgi.application'
 
+
+NACL_FIELDS_KEY = get_from_env_or_file(
+    'DJANGO_NACL_FIELDS_KEY', b'GQ_3W_#y1sg5C^6BX^F%kQ4}r15U7Wgd8ZH|Ck<u')
 
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
@@ -185,6 +212,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'rest.User'
 SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
 
+CSRF_COOKIE_DOMAIN = 'cesium.tv'
+CSRF_TRUSTED_ORIGINS = ['http://*.cesium.tv:8000']
+CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SECURE = not DEBUG
 
 CELERY_BROKER_URL = os.environ.get(
     'CELERY_BROKER_URL', f'redis://{REDIS_HOST}:{REDIS_PORT}/0')
@@ -194,16 +227,12 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_BEAT_SCHEDULER = os.environ.get(
     'CELERY_BEAT_SCHEDULER',
     'django_celery_beat.schedulers:DatabaseScheduler')
-CELERY_COMMAND = ('celery', '-A', 'api', 'worker', '-l', 'info')
+CELERY_COMMAND = (
+    'celery', '-A', 'api', 'worker', '-l', 'info',
+)
 CELERY_AUTORELOAD = DEBUG
 CELERY_ALWAYS_EAGER = TEST
 CELERY_TIMEZONE = TIME_ZONE
-CELERY_BEAT_SCHEDULE = {
-    # 'rest.tasks.video.import_videos': {
-    #     'task': 'rest.tasks.video.import_videos',
-    #     'schedule': crontab(minute=0),
-    # }
-}
 
 
 REST_FRAMEWORK = {
@@ -216,6 +245,9 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
     'PAGE_SIZE': 100,
+    'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ),
 }
 
 EMAIL_BACKEND = os.environ.get(
@@ -245,8 +277,18 @@ SITE_ID = 1
 
 AUTHLIB_OAUTH2_PROVIDER = {
     'refresh_token_generator': True,
+    'token_expires_in': {
+        'authorization_code': 604800,                       # 1 week
+        'refresh_token': 604800,                            # 1 week
+        'urn:ietf:params:oauth:grant-type:device_code': 0,  # indefinite
+        'password': 604800,                                 # 1 week
+    }
 }
 
-MEDIA_FIXTURE_FOLDERNAME='media'
+MEDIA_FIXTURE_FOLDERNAME = 'media'
 DJANGO_SCSS_PATH = os.getenv('DJANGO_SCSS_PATH')
 DJANGO_CSS_MINIFY = not DEBUG
+
+STRIPE_CLIENT_ID = os.getenv('DJANGO_STRIPE_CLIENT_ID')
+STRIPE_PUBLISHABLE_KEY = os.getenv('DJANGO_STRIPE_PUBLISHABLE_KEY')
+STRIPE_PRIVATE_KEY = os.getenv('DJANGO_STRIPE_PRIVATE_KEY')

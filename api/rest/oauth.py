@@ -150,7 +150,7 @@ class PasswordGrant(grants.ResourceOwnerPasswordCredentialsGrant):
 
 class DeviceAuthorizationEndpoint(BaseDeviceAuthorizationEndpoint):
     def get_verification_uri(self):
-        return reverse('oauth_device_code_verify_view')
+        return '/verify/'
 
     def save_device_credential(self, client_id, scope, data):
         client = OAuth2Client.objects.get(client_id=client_id)

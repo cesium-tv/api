@@ -1,0 +1,13 @@
+[
+    {
+      "model": "rest.subscription",
+      "pk": 1,
+      "fields": {
+        "user": 1,
+        "package": 1,
+        "created": "2022-09-01T20:10:10.827Z",
+        "updated": "2022-09-01T20:10:10.827Z"
+        }
+    }
+  ]
+  

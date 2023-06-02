@@ -1,23 +1,21 @@
 DOCKER = docker
-VIDSRC_SRC = ${shell find vidsrc/vidsrc}
-DOCKER_COMPOSE = docker-compose -p cesium.tv
-
-
-vidsrc/dist/vidsrc-0.1.0-py3-none-any.whl:
-	$(MAKE) -C vidsrc build
-
-
-api/vidsrc-0.1.0-py3-none-any.whl: vidsrc/dist/vidsrc-0.1.0-py3-none-any.whl
-	cp vidsrc/dist/vidsrc-0.1.0-py3-none-any.whl api/
+DOCKER_COMPOSE = docker compose -p cesium-tv
 
 
 .PHONY: build
-build: api/vidsrc-0.1.0-py3-none-any.whl
+build:
+	${MAKE} -C api build
 	${DOCKER_COMPOSE} build
 
 
+.PHONY: run
 run:
 	${DOCKER_COMPOSE} up
+
+
+.PHONY: stop
+stop:
+	${DOCKER_COMPOSE} stop
 
 
 .PHONY: test
@@ -48,7 +46,6 @@ endif
 clean:
 	${DOCKER_COMPOSE} rm --force
 	$(MAKE) -C api clean
-	$(MAKE) -C vidsrc clean
 
 
 .PHONY: resetdb
@@ -74,3 +71,18 @@ migrations:
 .PHONY: fixtures
 fixtures:
 	$(MAKE) -C api fixtures
+
+
+.PHONY: image
+image:
+	${DOCKER} build . -f docker/Dockerfile
+
+
+.PHONY: shell
+shell:
+	${MAKE} -C api shell
+
+
+.PHONY: dbshell
+dbshell:
+	${MAKE} -C api dbshell

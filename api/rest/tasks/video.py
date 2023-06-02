@@ -1,97 +1,74 @@
 import os
+import asyncio
 import logging
-from pprint import pprint
+import time
+import random
+
+from pprint import pprint, pformat
 from itertools import repeat
 
-from api.celery import task
+from celery import chain
+from celery.utils.log import get_task_logger
 from django.conf import settings
+from django.db import IntegrityError, DatabaseError
+from videosrc import crawl_sync
 
-from rest.models import Publisher, Channel, Video, Tag, VideoSource
-import vidsrc
-
-
-LOGGER = logging.getLogger(__name__)
-LOGGER.addHandler(logging.NullHandler())
-SENTINAL = object()
-
-
-def _get_variable(d, *keys):
-    final = keys[-1]
-    for key in keys[:-1]:
-        d = d[key]
-    var_name = d[final]
-    # Reads from env when: env[variable_name]
-    if var_name.startswith('env[') and var_name.endswith(']'):
-        d[final] = os.getenv(var_name[4:-1])
-    # Reads from settings when: settings[variable_name]
-    if var_name.startswith('settings[') and var_name.endswith(']'):
-        d[final] = getattr(settings, var_name[9:-1])
+from api.celery import task
+from rest.models import (
+    Subscription, Channel, ChannelMeta, Video, VideoMeta, VideoSource,
+    VideoSourceMeta,
+)
 
 
-@task
-def import_channel(channel_id, depth=SENTINAL, limit=SENTINAL):
-    options, channel = {}, Channel.objects.get(pk=channel_id)
+LOGGER = get_task_logger(__name__)
 
-    if channel.options:
-        options.update(channel.options)
-    if channel.publisher.options:
-        options.update(channel.publisher.options)
-    if depth is not SENTINAL:
-        options['depth'] = depth
-    if limit is not SENTINAL:
-        options['limit'] = limit
 
-    LOGGER.info('Importing channel')
-    LOGGER.info('name: %s', channel.name)
-    LOGGER.info('extern_id: %s', channel.extern_id)
-    LOGGER.info('extern_cursor: %s', channel.extern_cursor)
-    LOGGER.info('url: %s', channel.url)
-    LOGGER.info('options: %s', options)
+def save_state_factory(channel):
+    def save_state(state):
+        LOGGER.info('Saving state for channel %s', channel.name)
+        channel.update(state=state)
+    return save_state
 
-    _get_variable(options, 'credentials', 'username')
-    _get_variable(options, 'credentials', 'password')
 
-    objects = channel.platform.CrawlerClass(
-        channel,
-        options,
-    ).crawl(channel.extern_cursor)
+@task(bind=True, max_retries=3)
+def update_channel(self, channel_id):
+    try:
+        channel = Channel.objects.get(pk=channel_id)
+    except Channel.DoesNotExist:
+        LOGGER.warning('Invalid channel id %i', channel_id)
+        return
 
-    for obj, state in objects:
-        LOGGER.info('Saving video %s in channel %s', obj.extern_id, channel.name)
-        video, created = Video.objects.get_or_create(
-            channel=channel,
-            extern_id=obj.extern_id,
-            defaults={
-                'title': obj.title,
-                'poster': obj.poster,
-                'duration': obj.duration,
-                'original': obj.original,
-                'published': obj.published,
-            }
+    try:
+        auth_params = channel.auth_params or {}
+        channel_data, videos = crawl_sync(
+            channel.url,
+            state=channel.state,
+            save_state=save_state_factory(channel),
+            **auth_params,
         )
-        LOGGER.info('Adding tags %s to video', obj.tags)
-        video.tags.set([
-            Tag.objects.get_or_create(name=t)[0] for t in obj.tags
-        ])
-        for source in obj.sources:
-            LOGGER.info('Adding source %s to video', source.url)
-            VideoSource.objects.get_or_create(
-                video=video,
-                url=source.url,
-                width=source.width,
-                defaults={
-                    'height': source.height,
-                    'fps': source.fps,
-                    'size': source.size,
-                    'original': source.original,
-                }
-            )
+        channel.from_dataclass(channel_data)
 
-        LOGGER.info('Updating channel state to %s', state)
-        channel.update(extern_cursor=state)
+        for video in videos:
+            video, created = Video.objects.from_dataclass(channel, video)
+            if created:
+                LOGGER.debug('Added new video %s', video.id)
+
+            else:
+                LOGGER.info('Updated video %s', video.id)
+
+    except DatabaseError:
+        LOGGER.exception('Error saving video data')
+    
+    except Exception as e:
+        LOGGER.exception('Error fetching video data')
+        self.retry(exc=e)
 
 
 @task
-def import_videos():
+def update_channels():
+    # NOTE: we use a chain so updates run one after the other.
+    tasks = chain()
     for channel in Channel.objects.all():
-        import_channel.delay(channel.id)
+        LOGGER.debug('Scheduling channel update for %s', channel.name)
+        tasks |= update_channel.si(channel.id)
+    tasks.delay()

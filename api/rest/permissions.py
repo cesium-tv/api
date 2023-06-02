@@ -6,3 +6,10 @@ class CreateOrIsAuthenticated(permissions.IsAuthenticated):
         if super().has_permission(request, view):
             return True
         return view.action == 'create'
+
+
+class CreateOrIsAuthenticatedOrReadOnly(permissions.IsAuthenticatedOrReadOnly):
+    def has_permission(self, request, view):
+        if super().has_permission(request, view):
+            return True
+        return view.action == 'create'

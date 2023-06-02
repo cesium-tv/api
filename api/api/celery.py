@@ -1,4 +1,5 @@
 import os
+import types
 from celery import Celery
 from celery.signals import worker_ready
 
@@ -16,8 +17,5 @@ app.autodiscover_tasks()
 #         sender.app.send_task('rest.tasks.video.import_videos', (1,))
 
 
-def task(f):
-    """
-    Allows us to define some global parameters for app.task().
-    """
-    return app.task()(f)
+def task(*args, **kwargs):
+    return app.task(*args, **kwargs)

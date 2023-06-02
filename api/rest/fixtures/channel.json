@@ -3,24 +3,11 @@
     "model": "rest.channel",
     "pk": 1,
     "fields": {
-      "publisher": 2,
-      "platform": 1,
-      "name": "IRL",
+      "user": 1,
+      "extern_id": "25e754ef2848f307d81488467908db3a",
+      "name": "Timcast IRL: Members Only",
       "url": "https://timcast.com/members-area/section/timcast-irl/",
-      "extern_id": "timcast-irl",
-      "extern_cursor": null,
-      "options": {
-        "depth": null,
-        "limit": null,
-        "whitelist": [
-          "^https://timcast.com/members-area/section/timcast-irl/",
-          "^https://timcast.com/members-area/.*member-podcast"
-        ],
-        "credentials": {
-          "password": "env[TIMCAST_PASSWORD]",
-          "username": "env[TIMCAST_USERNAME]"
-        }
-      },
+      "packages": [1],
       "created": "2022-09-01T20:09:12.922Z",
       "updated": "2022-09-01T20:09:12.922Z"
     }
@@ -29,72 +16,52 @@
     "model": "rest.channel",
     "pk": 2,
     "fields": {
-      "publisher": 2,
-      "platform": 1,
-      "name": "Green Room",
-      "url": "https://timcast.com/members-area/section/green-room/",
-      "extern_id": "green-room",
-      "extern_cursor": null,
-      "options": {
-        "depth": null,
-        "limit": null,
-        "whitelist": [
-          "^https://timcast.com/members-area/section/green-room/",
-          "^https://timcast.com/members-area/.*green-room"
-        ],
-        "credentials": {
-          "password": "env[TIMCAST_PASSWORD]",
-          "username": "env[TIMCAST_USERNAME]"
-        }
-      },
-      "created": "2022-09-01T20:09:12.923Z",
-      "updated": "2022-09-01T20:09:12.923Z"
+      "user": 1,
+      "extern_id": "25e754ef2848f307d81488467908db49",
+      "name": "The Culture War with Tim Pool",
+      "is_public": true,
+      "url": "https://timcast.com/channel/culture-war/",
+      "created": "2022-09-01T20:09:12.922Z",
+      "updated": "2022-09-01T20:09:12.922Z"
     }
   },
   {
     "model": "rest.channel",
     "pk": 3,
     "fields": {
-      "publisher": 2,
-      "platform": 1,
-      "name": "Tales From the Inverted World",
-      "url": "https://timcast.com/members-area/section/tales-from-the-inverted-world/",
-      "extern_id": "tales-from-the-inverted-world",
-      "extern_cursor": null,
-      "options": {
-        "depth": null,
-        "limit": null,
-        "whitelist": [
-          "^https://timcast.com/members-area/section/tales-from-the-inverted-world/",
-          "^https://timcast.com/members-area/"
-        ],
-        "credentials": {
-          "password": "env[TIMCAST_PASSWORD]",
-          "username": "env[TIMCAST_USERNAME]"
-        }
-      },
-      "created": "2022-09-01T20:09:12.924Z",
-      "updated": "2022-09-01T20:09:12.924Z"
+      "user": 1,
+      "extern_id": "25e754ef2848f317d81488467908db3a",
+      "name": "Daily Wire: Matt Walsh",
+      "url": "https://twitter.com/MattWalshShow",
+      "packages": [1],
+      "created": "2022-09-01T20:09:12.922Z",
+      "updated": "2022-09-01T20:09:12.922Z"
     }
   },
   {
     "model": "rest.channel",
     "pk": 4,
     "fields": {
-      "publisher": 1,
-      "platform": 2,
-      "name": "Bens Favorites",
-      "url": "http://cesium.tv/",
-      "extern_id": "btimby_channel",
-      "extern_cursor": null,
-      "options": {
-        "credentials": {
-          "password": "env[PEERTUBE_PASSWORD]",
-          "username": "env[PEERTUBE_USERNAME]"
-        }
-      },
-      "created": "2022-09-01T20:09:12.925Z",
-      "updated": "2022-09-01T20:09:12.925Z"
+      "user": 1,
+      "extern_id": "25e754ef2848f317d81488467908db3c",
+      "name": "Mental Outlaw",
+      "is_public": true,
+      "url": "https://odysee.com/@AlphaNerd:8",
+      "created": "2022-09-01T20:09:12.922Z",
+      "updated": "2022-09-01T20:09:12.922Z"
     }
-  }  
+  },
+  {
+    "model": "rest.channel",
+    "pk": 5,
+    "fields": {
+      "user": 1,
+      "extern_id": "25e754ef2848f317d81488467908db3d",
+      "name": "Styxhexenhammer666",
+      "is_public": true,
+      "url": "https://rumble.com/c/Styxhexenhammer666",
+      "created": "2022-09-01T20:09:12.922Z",
+      "updated": "2022-09-01T20:09:12.922Z"
+    }
+  }
 ]

@@ -1,0 +1,13 @@
+[
+  {
+    "model": "rest.package",
+    "pk": 1,
+    "fields": {
+      "user": 1,
+      "name": "Unlimited",
+      "price_month": "10.00",
+      "created": "2022-09-01T20:10:10.827Z",
+      "updated": "2022-09-01T20:10:10.827Z"
+    }
+  }
+]

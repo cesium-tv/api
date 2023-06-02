@@ -11,9 +11,12 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.safestring import mark_safe
 from django.urls import reverse
 
+from bitfield import BitField
+from bitfield.forms import BitFieldCheckboxSelectMultiple
+
 from rest.models import (
-    User, Publisher, Channel, Video, VideoSource, Tag, Subscription,
-    SiteOption, MenuItem, Brand, OAuth2Client,
+    User, Channel, Video, VideoSource, Subscription, SiteOption,
+    MenuItem, Brand, OAuth2Client, StripeAccount, Package,
 )
 
 
@@ -67,12 +70,20 @@ class UserChangeForm(BaseUserChangeForm):
 
 
 class SubscriptionInline(admin.TabularInline):
+    formfield_overrides = {
+            BitField: {'widget': BitFieldCheckboxSelectMultiple},
+    }
     model = Subscription
+
+
+class StripeAccountInline(admin.TabularInline):
+    model = StripeAccount
+    fields = ('account_id', )
 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
-    list_display = ('site',) + BaseUserAdmin.list_display
+    list_display = BaseUserAdmin.list_display + ('site',)
     fieldsets = (
         (None, {"fields": ("site", "username", "password")}),
         (_("Personal info"), {"fields": ("first_name", "last_name", "email", "is_confirmed")}),
@@ -90,7 +101,20 @@ class UserAdmin(BaseUserAdmin):
         ),
         (_("Important dates"), {"fields": ("last_login", "date_joined")}),
     )
+    inlines = (SubscriptionInline, StripeAccountInline, )
+
+
+@admin.register(Package)
+class PackageAdmin(admin.ModelAdmin):
+    list_display = ('name', 'user', )
+    formfield_overrides = {
+            BitField: {'widget': BitFieldCheckboxSelectMultiple},
+    }
     inlines = (SubscriptionInline, )
+
+
+class PackageInline(admin.TabularInline):
+    model = Package
 
 
 class MenuItemInline(admin.TabularInline):
@@ -114,6 +138,7 @@ class SiteOptionAdmin(admin.ModelAdmin):
 
 @reregister(Site)
 class SiteAdmin(BaseSiteAdmin):
+    list_display = ('name', 'domain')
     inlines = (SiteOptionInline, )
 
 
@@ -121,37 +146,22 @@ class ChannelInline(admin.TabularInline):
     model = Channel
 
 
-@admin.register(Publisher)
-class PublisherAdmin(admin.ModelAdmin):
-    list_display = ('name', "channel_count", )
-    inlines = (ChannelInline, )
-
-    def channel_count(self, obj):
-        return obj.channel_count
-
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        queryset = queryset.annotate(channel_count=Count("channels"))
-        return queryset
-
-
 @admin.register(Channel)
 class ChannelAdmin(admin.ModelAdmin):
-    list_display = ("name", "video_count", "subscriber_count", "url")
-    list_filter = ('publisher', )
-    inlines = (SubscriptionInline, )
+    list_display = (
+        "name", "user", "video_count", "url", 'created', 'updated',
+    )
+    formfield_overrides = {
+            BitField: {'widget': BitFieldCheckboxSelectMultiple},
+    }
 
     def video_count(self, obj):
         return obj.video_count
-
-    def subscriber_count(self, obj):
-        return obj.subscriber_count
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         queryset = queryset.annotate(
             video_count=Count("videos"),
-            subscriber_count=Count("subscribers")
         )
         return queryset
 
@@ -162,10 +172,11 @@ class VideoSourceInline(admin.TabularInline):
 
 @admin.register(Video)
 class VideoAdmin(admin.ModelAdmin):
-    list_display = ("title", "source_count", "channel", "poster", "published")
+    list_display = ("title", "source_count", "poster", "published")
     list_filter = ("channel", )
     inlines = (VideoSourceInline, )
     ordering = ('-published',)
+    readonly_fields = ('uid', )
 
     def source_count(self, obj):
         return obj.source_count
@@ -178,17 +189,12 @@ class VideoAdmin(admin.ModelAdmin):
 
 @admin.register(VideoSource)
 class VideoSourceAdmin(admin.ModelAdmin):
-    list_display = ("dimension", "video", "url")
-    list_filter = ("video__channel", )
-
-
-@admin.register(Tag)
-class TagAdmin(admin.ModelAdmin):
-    pass
+    list_display = ("dimension", "video", "url", 'created', 'updated')
 
 
 @admin.register(Brand)
 class BrandAdmin(admin.ModelAdmin):
+    list_display = ('name', 'user', 'scheme', 'created', 'updated')
     readonly_fields = ('theme_css', )
 
 

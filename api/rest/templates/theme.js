@@ -11,7 +11,8 @@ window.CesiumTheme = {
     "title": "{{ options.title }}",
     "name": "{{ site.name }}",
     "domain": "{{ site.domain }}",
-    "default_lang": "{{ options.default_lang }}"
+    "default_lang": "{{ options.default_lang }}",
+    "logo": "{{ brand.logo.url }}",
 };
 
 document.title = window.CesiumTheme.title;
