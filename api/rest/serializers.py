@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth import get_user_model
 
 from rest_framework import serializers
@@ -8,7 +10,28 @@ from rest.models import (
     Like, Dislike, Subscription, Queue, Tag,
 )
 
+
 User = get_user_model()
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.addHandler(logging.NullHandler())
+
+
+class SearchResultSerializer(serializers.Serializer):
+    "Serializes as a search result if rank is present on model."
+    def to_representation(self, obj):
+        obj_repr = self.object_serializer_class(obj).to_representation(obj)
+        if hasattr(obj, 'rank'):
+            # Search result:
+            obj_repr = {
+                'rank': obj.rank,
+                'channel': obj_repr,
+            }
+            for field_name in self.highlight_fields:
+                field_name = f'{field_name}_highlighted'
+                obj_repr[field_name] = getattr(obj, field_name)
+
+        return obj_repr
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -75,11 +98,12 @@ class UserConfirmSerializer(serializers.Serializer):
         return user
 
 
-class ChannelSerializer(serializers.ModelSerializer):
+class ChannelObjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Channel
         fields = (
             'uid', 'name', 'url', 'n_subscribers', 'created', 'n_videos',
+            'rank', 'snippet',
         )
 
     def __init__(self, *args, **kwargs):
@@ -91,6 +115,13 @@ class ChannelSerializer(serializers.ModelSerializer):
     uid = serializers.CharField(read_only=True)
     n_videos = serializers.IntegerField()
     n_subscribers = serializers.IntegerField()
+    rank = serializers.FloatField(read_only=True)
+    snippet = serializers.CharField(read_only=True)
+
+
+class ChannelSerializer(SearchResultSerializer):
+    object_serializer_class = ChannelObjectSerializer
+    highlight_fields = ['name', 'title', 'description', 'url']
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -110,7 +141,7 @@ class VideoSourceSerializer(serializers.ModelSerializer):
     uid = serializers.CharField(read_only=True)
 
 
-class VideoSerializer(serializers.ModelSerializer):
+class VideoObjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Video
         fields = (
@@ -120,7 +151,7 @@ class VideoSerializer(serializers.ModelSerializer):
         )
 
     uid = serializers.CharField(read_only=True)
-    channel = ChannelSerializer(
+    channel = ChannelObjectSerializer(
         read_only=True, exclude_fields=('n_videos', 'n_subscribers'))
     sources = VideoSourceSerializer(many=True, read_only=True)
     tags = serializers.StringRelatedField(many=True)
@@ -139,6 +170,11 @@ class VideoSerializer(serializers.ModelSerializer):
 
     def get_is_disliked(self, obj):
         return getattr(obj, 'is_disliked', False)
+
+
+class VideoSerializer(SearchResultSerializer):
+    object_serializer_class = VideoObjectSerializer
+    highlight_fields = ['title', 'description']
 
 
 class PlaySerializer(serializers.ModelSerializer):

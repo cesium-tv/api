@@ -1,19 +1,35 @@
 import django_filters as filters
 from django_filters.constants import EMPTY_VALUES
 
-from django.contrib.postgres.search import SearchQuery
+from django.contrib.postgres.search import (
+    SearchQuery, SearchRank, SearchHeadline,
+)
 from django.db.models import Count, Func
 
 from rest.models import User, Video, Channel, Package, Tag
 
 
 class SearchFilter(filters.CharFilter):
+    def __init__(self, *args, **kwargs):
+        self.highlight_fields=kwargs.pop('highlight_fields', None)
+        super().__init__(*args, **kwargs)
+
     # Performs full-text search.
-    # TODO: ranking excerpts etc.
     def filter(self, queryset, value):
         if value in EMPTY_VALUES:
             return queryset
-        return queryset.filter(search=SearchQuery(value))
+        query = SearchQuery(value)
+        for field_name in self.highlight_fields:
+            annotated_name = f'{field_name}_highlighted'
+            queryset = queryset.annotate(**{
+                annotated_name: SearchHeadline(field_name, query),
+            })
+        return queryset \
+            .annotate(
+                rank=SearchRank('search', query),
+            ) \
+            .filter(search=query) \
+            .order_by('-rank')
 
 
 class CICharFilter(filters.CharFilter):
@@ -71,7 +87,10 @@ class VideoFilterSet(filters.FilterSet):
         ),
     )
 
-    search = SearchFilter(field_name='search')
+    search = SearchFilter(
+        field_name='search',
+        highlight_fields=['title', 'description'],
+    )
     tags__name = filters.CharFilter(
         field_name='tags__name', lookup_expr='exact')
     tags__name__startswith = CICharFilter(
@@ -129,7 +148,8 @@ class ChannelFilterSet(filters.FilterSet):
         ),
     )
 
-    search = SearchFilter(field_name='search')
+    search = SearchFilter(
+        field_name='search', highlight_fields=['name', 'title', 'description', 'url'])
     n_videos = filters.NumberFilter(field_name='n_videos', lookup_expr='exact')
     n_videos__gt = filters.NumberFilter(field_name='n_videos', lookup_expr='gt')
     n_videos__gte = filters.NumberFilter(

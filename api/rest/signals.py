@@ -27,10 +27,10 @@ def tag_delete_search(sender, instance, **kwargs):
 @receiver(m2m_changed, sender=Video.tags.through)
 def update_video_search(sender, instance, **kwargs):
     LOGGER.debug('Updating search vectors for video id: %i', instance.id)
-    tags_str = ' '.join(instance.tags.all().values_list('name', flat=True))
+    #tags_str = ' '.join(instance.tags.all().values_list('name', flat=True))
     Video.objects \
         .filter(id=instance.id) \
-        .update(search=SearchVector('title', 'description', Value(tags_str)))
+        .update(search=SearchVector('title', 'description'))  #, Value(tags_str)))
 
 
 @receiver(post_save, sender=Channel)
