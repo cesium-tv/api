@@ -8,7 +8,7 @@ from rest.models import User, Video, Channel, Package, Tag
 
 
 class SearchFilter(filters.CharFilter):
-    # NOTE: performs full-text search.
+    # Performs full-text search.
     # TODO: ranking excerpts etc.
     def filter(self, queryset, value):
         if value in EMPTY_VALUES:
@@ -37,7 +37,9 @@ class UserFilterSet(filters.FilterSet):
     class Meta:
         model = User
         fields = {
-            'username': ['exact', 'startswith', 'contains', 'icontains'],
+            'username': [
+                'exact', 'startswith', 'istartswith', 'contains', 'icontains',
+            ],
         }
 
     order = filters.OrderingFilter(
@@ -53,6 +55,12 @@ class VideoFilterSet(filters.FilterSet):
         fields = {
             'duration': ['exact', 'gt', 'gte', 'lt', 'lte'],
             'published': ['exact', 'gt', 'gte', 'lt', 'lte'],
+            'title': [
+                'exact', 'startswith', 'istartswith', 'contains', 'icontains',
+            ],
+            'description': [
+                'exact', 'startswith', 'istartswith', 'contains', 'icontains',
+            ],
         }
 
     order = filters.OrderingFilter(
@@ -100,10 +108,18 @@ class ChannelFilterSet(filters.FilterSet):
     class Meta:
         model = Channel
         fields = {
-            'name': ['exact', 'startswith', 'contains', 'icontains'],
-            'title': ['exact', 'startswith', 'contains', 'icontains'],
-            'description': ['exact', 'startswith', 'contains', 'icontains'],
-            'url': ['exact', 'startswith', 'contains', 'icontains'],
+            'name': [
+                'exact', 'startswith', 'istartswith', 'contains', 'icontains',
+            ],
+            'title': [
+                'exact', 'startswith', 'istartswith', 'contains', 'icontains',
+            ],
+            'description': [
+                'exact', 'startswith', 'istartswith', 'contains', 'icontains',
+            ],
+            'url': [
+                'exact', 'startswith', 'istartswith', 'contains', 'icontains',
+            ],
         }
 
     order = filters.OrderingFilter(
@@ -149,7 +165,9 @@ class TagFilterSet(filters.FilterSet):
     class Meta:
         model = Tag
         fields = {
-            'name': ['exact', 'startswith', 'contains', 'icontains'],
+            'name': [
+                'exact', 'startswith', 'istartswith', 'contains', 'icontains',
+            ],
         }
 
     order = filters.OrderingFilter(

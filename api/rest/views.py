@@ -242,7 +242,7 @@ class ChannelViewSet(ModelViewSet):
 class TagViewSet(ModelViewSet):
     permission_classes = [AllowAny]
     serializer_class = TagSerializer
-    lookup_field = 'name'
+    lookup_field = 'uid'
     filterset_class = TagFilterSet
 
     def get_queryset(self):

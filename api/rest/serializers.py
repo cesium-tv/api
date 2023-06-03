@@ -96,8 +96,9 @@ class ChannelSerializer(serializers.ModelSerializer):
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
-        fields = ['name', 'n_tagged']
+        fields = ['uid', 'name', 'n_tagged']
 
+    uid = serializers.CharField(read_only=True)
     n_tagged = serializers.IntegerField()
 
 

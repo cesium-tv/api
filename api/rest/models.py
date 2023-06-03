@@ -14,7 +14,9 @@ from csscompressor import compress
 
 from django import forms
 from django.db import models
-from django.db.models import Exists, Count, OuterRef, Subquery, Func, F, Q
+from django.db.models import (
+    Exists, Count, OuterRef, Subquery, Func, F, Q, Max,
+)
 from django.db.transaction import atomic
 from django.core.validators import FileExtensionValidator
 from django.core.files.base import ContentFile
@@ -343,7 +345,7 @@ class Brand(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
     danger = ColorField(default='#f14668', verbose_name='Danger dialogs / text')
 
     def __str__(self):
-        return f'{self.name}'
+        return self.name
 
     def compile(self, template_name='theme.scss', minify=None):
         if minify is None:
@@ -426,7 +428,7 @@ class Package(CreatedUpdatedMixin, models.Model):
         return self.name
 
 
-class ChannelQuerySet(models.QuerySet):
+class ChannelQuerySet(HashidsQuerySet):
     def default_annotations(self):
         return self.annotate(
             n_videos=Count('videos'),
@@ -533,7 +535,7 @@ class ChannelMeta(CreatedUpdatedMixin, models.Model):
     metadata = models.JSONField()
 
 
-class TagQuerySet(models.QuerySet):
+class TagQuerySet(HashidsQuerySet):
     def default_annotations(self):
         queryset = self.annotate(n_tagged=Count('tagged'))
         return queryset
@@ -546,7 +548,7 @@ class TagQuerySet(models.QuerySet):
         raise NotImplementedError('Tags are immutable.')
 
 
-class TagManager(models.Manager):   
+class TagManager(HashidsManager):   
     def get_queryset(self):
         return TagQuerySet(self.model, using=self._db)
 
@@ -584,7 +586,7 @@ class TagManager(models.Manager):
         self.remove_from(obj, e.difference(n))
 
 
-class Tag(models.Model):
+class Tag(HashidsModelMixin, models.Model):
     name = models.TextField(
         max_length=32, null=False, unique=True, db_collation='ci')
 
@@ -600,7 +602,7 @@ class Tag(models.Model):
         return super().save(*args, **kwargs)
 
 
-class VideoQuerySet(models.QuerySet):
+class VideoQuerySet(HashidsQuerySet):
     def default_annotations(self, user=None):
         queryset = self.annotate(
                 n_plays=Count('plays'),
@@ -808,21 +810,6 @@ class Subscription(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
         return f'{self.user}: {self.package}'
 
 
-# class SubscriptionVideo(CreatedUpdatedMixin, models.Model):
-#     class Meta:
-#         unique_together = [
-#             ('video', 'subscription'),
-#         ]
-
-#     video = models.ForeignKey(
-#         Video, related_name='channels', on_delete=models.CASCADE)
-#     subscription = models.ForeignKey(
-#         Subscription, related_name='videos', on_delete=models.CASCADE)
-
-#     def __str__(self):
-#         return f'{self.channel}: {self.video}'
-
-
 class Play(CreatedUpdatedMixin, models.Model):
     user = models.ForeignKey(
         User, related_name='played', on_delete=models.CASCADE)
@@ -833,7 +820,7 @@ class Play(CreatedUpdatedMixin, models.Model):
     objects = models.Manager()
 
     def __str__(self):
-        return f'{self.user} played {self.video}'
+        return f'{self.user} played {self.video.uid}'
 
 
 class Like(CreatedUpdatedMixin, models.Model):
@@ -846,13 +833,16 @@ class Like(CreatedUpdatedMixin, models.Model):
         User, related_name='liked', on_delete=models.CASCADE)
     video = models.ForeignKey(
         Video, related_name='likes', on_delete=models.CASCADE)
+    rating = models.PositiveSmallIntegerField(choices=[
+        (1, 1), (2, 2), (3, 3), (4, 4), (5, 5)
+    ], default=1)
 
     def save(self, *args, **kwargs):
         Dislike.objects.filter(user=self.user, video=self.video).delete()
         return super().save(*args, **kwargs)
 
     def __str__(self):
-        return f'{self.user} liked {self.video}'
+        return f'{self.user} likes {self.video.uid}'
 
 
 class Dislike(CreatedUpdatedMixin, models.Model):
@@ -865,13 +855,16 @@ class Dislike(CreatedUpdatedMixin, models.Model):
         User, related_name='disliked', on_delete=models.CASCADE)
     video = models.ForeignKey(
         Video, related_name='dislikes', on_delete=models.CASCADE)
+    rating = models.PositiveSmallIntegerField(choices=[
+        (1, 1), (2, 2), (3, 3), (4, 4), (5, 5)
+    ], default=1)
 
     def save(self, *args, **kwargs):
         Like.objects.filter(user=self.user, video=self.video).delete()
         return super().save(*args, **kwargs)
 
     def __str__(self):
-        return f'{self.user} disliked {self.video}'
+        return f'{self.user} dislikes {self.video.uid}'
 
 
 class QueueManager(models.Manager):
@@ -892,11 +885,11 @@ class QueueManager(models.Manager):
             obj.position = self \
                 .select_for_update() \
                 .filter(user=obj.user) \
-                .aggregate(Max('position')) \
-                .values_list('position__max', flat=True)[0] + 1
+                .aggregate(Max('position'))['position__max'] + 1
 
-        except IndexError:
+        except TypeError:
             obj.position = 0
+
         obj.save(force_insert=True)
         obj.refresh_from_db()
         return obj
@@ -923,6 +916,9 @@ class Queue(CreatedUpdatedMixin, models.Model):
     position = models.PositiveSmallIntegerField(default=0)
 
     objects = QueueManager()
+
+    def __str__(self):
+        return f'{self.user} queue {self.position}: {self.video.uid}'
 
 
 # https://docs.authlib.org/en/latest/django/2/authorization-server.html
