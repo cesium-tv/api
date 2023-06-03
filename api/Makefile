@@ -10,7 +10,7 @@ test:
 
 .PHONY: lint
 lint:
-	flake8 back/
+	flake8
 
 
 .PHONY: migrations

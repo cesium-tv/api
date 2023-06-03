@@ -21,11 +21,13 @@ stop:
 .PHONY: test
 test:
 	${MAKE} -C api test
+	${MAKE} -C ui test
 
 
 .PHONY: lint
 lint:
 	${MAKE} -C api lint
+	${MAKE} -C ui lint
 
 
 .PHONY: rebuild
