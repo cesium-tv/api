@@ -3,8 +3,20 @@
     "model": "django_celery_beat.crontabschedule",
     "pk": 2,
     "fields": {
-      "minute": "*",
+      "minute": "0",
       "hour": "*/4",
+      "day_of_week": "*",
+      "day_of_month": "*",
+      "month_of_year": "*",
+      "timezone": "UTC"
+    }
+  },
+  {
+    "model": "django_celery_beat.crontabschedule",
+    "pk": 3,
+    "fields": {
+      "minute": "*/15",
+      "hour": "*",
       "day_of_week": "*",
       "day_of_month": "*",
       "month_of_year": "*",
@@ -18,7 +30,17 @@
       "name": "rest.tasks.video.update_channels",
       "task": "rest.tasks.video.update_channels",
       "crontab": 2,
-      "date_changed": "2023-05-23T04:17:27.925Z",
+      "date_changed": "2023-05-23T04:17:27.925Z"
+    }
+  },
+  {
+    "model": "django_celery_beat.periodictask",
+    "pk": 3,
+    "fields": {
+      "name": "rest.tasks.video.update_channels_random",
+      "task": "rest.tasks.video.update_channels_random",
+      "crontab": 3,
+      "date_changed": "2023-05-23T04:17:27.925Z"
     }
   }
 ]

@@ -15,6 +15,10 @@ import sys
 from pathlib import Path
 from celery.schedules import crontab
 
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+from sentry_sdk.integrations.celery import CeleryIntegration
+
 
 def get_from_env_or_file(var_name, default=None):
     file_var_name = '%s_FILE' % var_name
@@ -24,6 +28,20 @@ def get_from_env_or_file(var_name, default=None):
             return f.read()
     else:
         return os.environ.get(var_name, default)
+
+
+sentry_sdk.init(
+    dsn='http://fdd54c7376064c36a1d6c7b0174c4cb2@host.docker.internal:9000/2',
+    integrations=[
+        DjangoIntegration(),
+        CeleryIntegration(
+            monitor_beat_tasks=True,
+            exclude_beat_tasks=['celery.backend_cleanup'],
+        ),
+    ],
+    traces_sample_rate=1.0,
+    send_default_pii=True,
+)
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.

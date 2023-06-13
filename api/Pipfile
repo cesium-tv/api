@@ -30,8 +30,9 @@ django-nacl-fields = {ref = "2742c15cbb66fe2c726cf887bd90e54678036aa7", git = "h
 django-picklefield = "*"
 django-bitfield = "*"
 stripe = "*"
-videosrc = {ref = "60d8c5a66e7b6c00e7c9d76ca2528cc13ed1e816", git = "https://github.com/cesium-tv/videosrc.git"}
+videosrc = {ref = "c0851ad11dce1139ab4f45abb9e4b233f3f4567a", git = "https://github.com/cesium-tv/videosrc.git"}
 django-filter = "*"
+sentry-sdk = "*"
 
 [dev-packages]
 flake8 = "*"

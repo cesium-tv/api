@@ -21,13 +21,15 @@ services:
       default:
         aliases:
           - cesium.tv
+    extra_hosts:
+      - host.docker.internal:host-gateway
     volumes:
       - ./docker/api/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app
-      - media:/media
+      - media:/static
     environment:
       - DJANGO_DEBUG=true
-      - DJANGO_MEDIA_ROOT=/media
+      - DJANGO_MEDIA_ROOT=/static/media
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
       - DJANGO_SU_USERNAME=btimby
@@ -83,6 +85,8 @@ services:
     volumes:
       - ./docker/api/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
     environment:
       - DJANGO_DB_USER=user
       - DJANGO_DB_PASSWORD=password
@@ -105,6 +109,8 @@ services:
     volumes:
       - ./docker/api/entrypoint-django.sh:/entrypoint.sh:ro
       - ./api:/app:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
     environment:
       - DJANGO_DEBUG=true
       - DJANGO_DB_USER=user

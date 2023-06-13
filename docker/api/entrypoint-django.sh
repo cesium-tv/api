@@ -18,7 +18,7 @@ if [ "${CMD}" == "api" ]; then
 
     uwsgi --enable-threads --http-socket=${DJANGO_HOST}:${DJANGO_PORT} \
         --uid=65534 --gid=65534 --manage-script-name \
-        --static-map /=/app/static --static-gzip-all --static-index=index.html \
+        --static-map /=/static --static-gzip-all --static-index=index.html \
         --mount /=api.wsgi:application ${ARGS}
 
 elif [ "${CMD}" == "migrate" ]; then
@@ -33,7 +33,7 @@ elif [ "${CMD}" == "beat" ]; then
         ARGS="${ARGS} --gid=${CELERY_GID}"
     fi
 
-    celery -A api beat -l info${ARGS}
+    celery -A api beat -l debug${ARGS}
 
 elif [ "${CMD}" == "celery" ]; then
     if [ ! -z "${CELERY_UID}" ]; then

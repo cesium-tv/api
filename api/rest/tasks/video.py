@@ -72,3 +72,24 @@ def update_channels():
         LOGGER.debug('Scheduling channel update for %s', channel.name)
         tasks |= update_channel.si(channel.id)
     tasks.delay()
+
+
+@task(bind=True, max_retries=3)
+def update_channels_random(self, n_channels=2):
+    indexes = set()
+
+    try:
+        count = Channel.objects.all().count()
+        if count:
+            random_index = random.randint(0, count - 1 - n_channels)
+            for channel in Channel.objects.all()[random_index:random_index + n_channels]:
+                update_channel.delay(channel.id)
+
+    except Exception as e:
+        LOGGER.exception('Error updating random channel')
+        self.retry(exc=e)
+
+
+@task
+def update_channels_():
+    pass

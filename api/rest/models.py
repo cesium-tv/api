@@ -489,7 +489,7 @@ class Channel(HashidsModelMixin, CreatedUpdatedMixin, models.Model):
     extern_id = models.CharField(max_length=128, unique=True)
     options = BitField(flags=[])
     url = models.URLField()
-    state = PickledObjectField(null=True, blank=True)
+    state = PickledObjectField(null=True, blank=True, editable=True)
     auth_params = models.JSONField(null=True, blank=True)
     is_public = models.BooleanField(default=False)
     name = models.CharField(max_length=64)
@@ -815,12 +815,22 @@ class Play(CreatedUpdatedMixin, models.Model):
         User, related_name='played', on_delete=models.CASCADE)
     video = models.ForeignKey(
         Video, related_name='plays', on_delete=models.CASCADE)
-    cursor = models.JSONField(null=True, blank=True)
-
-    objects = models.Manager()
 
     def __str__(self):
         return f'{self.user} played {self.video.uid}'
+
+
+class PlayCursor(models.Model):
+    class Meta:
+        unique_together = [
+            ('user', 'video'),
+        ]
+
+    user = models.ForeignKey(
+        User, related_name='cursors', on_delete=models.CASCADE)
+    video = models.ForeignKey(
+        Video, related_name='cursors', on_delete=models.CASCADE)
+    cursor = models.JSONField()
 
 
 class Like(CreatedUpdatedMixin, models.Model):

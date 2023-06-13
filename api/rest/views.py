@@ -5,6 +5,7 @@ import socket
 import json
 import glob
 from urllib.parse import urlparse, urlunparse
+from datetime import timedelta
 
 from django.conf import settings
 from django.http import HttpResponseRedirect, Http404, HttpResponse
@@ -18,7 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.cache import cache_page
 from django.utils.decorators import method_decorator
 from django.db import transaction
-from django.db.models import Exists, Count, OuterRef, Subquery, Func, F
+from django.db.models import Exists, Count, OuterRef, Subquery, Func, F, Max
 from django.utils import timezone
 
 from rest_framework import status, permissions
@@ -40,7 +41,7 @@ from rest.serializers import (
 )
 from rest.models import (
     Video, Channel, Play, Like, Dislike, SiteOption, Brand, OAuth2Token,
-    OAuth2DeviceCode, OAuth2Client, Subscription, Queue, Tag,
+    OAuth2DeviceCode, OAuth2Client, Subscription, Queue, Tag, PlayCursor,
 )
 from rest.filters import (
     UserFilterSet, VideoFilterSet, ChannelFilterSet, PackageFilterSet,
@@ -260,7 +261,13 @@ class VideoViewSet(ModelViewSet):
             .for_user(self.request.user, annotated=True) \
             .select_related('channel') \
             .prefetch_related('sources') \
+            .prefetch_related('tags') \
             .order_by('-published')
+
+        if self.request.user.is_authenticated:
+            queryset = queryset.annotate(cursor=Subquery(
+                PlayCursor.objects.filter(user=self.request.user, video_id=OuterRef('id')).values('cursor')
+            ))
 
         return queryset
 
@@ -278,31 +285,72 @@ class VideoViewSet(ModelViewSet):
 
     @action(detail=True, methods=['POST'], permission_classes=[IsAuthenticated])
     def like(self, request, uid):
+        video = get_object_or_404(Video, uid=uid)
         like, created = Like.objects.get_or_create(
             user=request.user, video=video)
         serializer = LikeSerializer(like, many=False)
-        status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
-        return Response(serializer.data, status=status)
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=['POST'], permission_classes=[IsAuthenticated])
     def dislike(self, request, uid):
+        video = get_object_or_404(Video, uid=uid)
         dislike, created = Dislike.objects.get_or_create(
             user=request.user, video=video)
         serializer = DislikeSerializer(dislike, many=False)
-        status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
-        return Response(serializer.data, status=status)
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=['POST'], permission_classes=[IsAuthenticated])
+    def cursor(self, request, uid):
+        try:
+            cursor = request.data['cursor']
+
+        except KeyError:
+            return Response('', status.HTTP_400_BAD_REQUEST)
+
+        video = get_object_or_404(Video, uid=uid)
+        play_cursor, created = PlayCursor.objects.update_or_create(
+            user=request.user,
+            video=video,
+            defaults={'cursor': cursor}
+        )
+
+        return Response(
+            cursor,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=['POST'], permission_classes=[IsAuthenticated])
     def played(self, request, uid):
-        play, created = Play.objects.get_or_create(
-            user=request.user, video=video)
-        serializer = PlaySerializer(play, many=False)
-        status = status.HTTP_201_CREATED if created else status.HTTP_200_OK
-        return Response(serializer.data, status=status)
+        video = get_object_or_404(Video, uid=uid)
+        min_created = timezone.now() - timedelta(hours=1)
+        created = False
+
+        play = Play.objects.filter(
+            user=request.user, video=video, created__gte=min_created
+        ).order_by('-id').first()
+
+        if play is None:
+            play = Play.objects.create(
+                user=request.user, video=video)
+            created = True
+
+        else:
+            play.save(update_fields=['updated'])
+
+        return Response(
+            '',
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=['POST'], permission_classes=[IsAuthenticated])
     def enqueue(self, request, uid):
-        position = request.args.get('position', 'tail')
+        position = request.data.get('position', 'tail')
         video = get_object_or_404(Video, uid=uid)
         q = Queue(video=video, user=request.user)
         if position == 'tail':

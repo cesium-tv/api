@@ -121,13 +121,13 @@ class ChannelObjectSerializer(serializers.ModelSerializer):
 
 class ChannelSerializer(SearchResultSerializer):
     object_serializer_class = ChannelObjectSerializer
-    highlight_fields = ['name', 'title', 'description', 'url']
+    highlight_fields = ('name', 'title', 'description', 'url')
 
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
-        fields = ['uid', 'name', 'n_tagged']
+        fields = ('uid', 'name', 'n_tagged')
 
     uid = serializers.CharField(read_only=True)
     n_tagged = serializers.IntegerField()
@@ -136,7 +136,9 @@ class TagSerializer(serializers.ModelSerializer):
 class VideoSourceSerializer(serializers.ModelSerializer):
     class Meta:
         model = VideoSource
-        fields = ('uid', 'width', 'height', 'url', 'fps', 'size', 'created')
+        fields = (
+            'uid', 'width', 'height', 'url', 'mime', 'fps', 'size', 'created',
+        )
 
     uid = serializers.CharField(read_only=True)
 
@@ -146,8 +148,8 @@ class VideoObjectSerializer(serializers.ModelSerializer):
         model = Video
         fields = (
             'uid', 'channel', 'title', 'poster', 'duration', 'published',
-            'sources', 'tags', 'created', 'is_played', 'is_liked', 'is_disliked',
-            'n_plays', 'n_likes', 'n_dislikes',
+            'sources', 'tags', 'created', 'cursor', 'is_played', 'is_liked',
+            'is_disliked', 'n_plays', 'n_likes', 'n_dislikes',
         )
 
     uid = serializers.CharField(read_only=True)
@@ -155,6 +157,7 @@ class VideoObjectSerializer(serializers.ModelSerializer):
         read_only=True, exclude_fields=('n_videos', 'n_subscribers'))
     sources = VideoSourceSerializer(many=True, read_only=True)
     tags = serializers.StringRelatedField(many=True)
+    cursor = serializers.SerializerMethodField()
     is_played = serializers.SerializerMethodField()
     is_liked = serializers.SerializerMethodField()
     is_disliked = serializers.SerializerMethodField()
@@ -162,8 +165,11 @@ class VideoObjectSerializer(serializers.ModelSerializer):
     n_likes = serializers.IntegerField()
     n_dislikes = serializers.IntegerField()
 
+    def get_cursor(self, obj):
+        return getattr(obj, 'cursor', None)
+
     def get_is_played(self, obj):
-        return getattr(obj, 'is_played', False)
+        return getattr(obj, 'is_played', None)
 
     def get_is_liked(self, obj):
         return getattr(obj, 'is_liked', False)
@@ -183,45 +189,73 @@ class PlaySerializer(serializers.ModelSerializer):
         fields = ('uid', 'user', 'video', 'created')
 
     uid = serializers.CharField(read_only=True)
-    user = UserSerializer(many=False)
-    video = VideoSerializer(many=False)
+    user = serializers.SerializerMethodField()
+    video = serializers.SerializerMethodField()
+
+    def get_user(self, obj):
+        return { 'uid': obj.user.uid }
+
+    def get_video(self, obj):
+        return { 'uid': obj.video.uid }
 
 
 class LikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Like
-        fields = ('uid', 'user', 'video', 'created')
+        fields = ('uid', 'user', 'video', 'rating', 'created')
 
     uid = serializers.CharField(read_only=True)
-    user = UserSerializer(many=False)
-    video = VideoSerializer(many=False)
+    user = serializers.SerializerMethodField()
+    video = serializers.SerializerMethodField()
+
+    def get_user(self, obj):
+        return { 'uid': obj.user.uid }
+
+    def get_video(self, obj):
+        return { 'uid': obj.video.uid }
 
 
 class DislikeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Dislike
-        fields = ('uid', 'user', 'video', 'created')
+        fields = ('uid', 'user', 'video', 'rating', 'created')
 
     uid = serializers.CharField(read_only=True)
-    user = UserSerializer(many=False)
-    video = VideoSerializer(many=False)
+    user = serializers.SerializerMethodField()
+    video = serializers.SerializerMethodField()
+
+    def get_user(self, obj):
+        return { 'uid': obj.user.uid }
+
+    def get_video(self, obj):
+        return { 'uid': obj.video.uid }
 
 
 class QueueSerializer(serializers.ModelSerializer):
     class Meta:
         model = Queue
-        fields = ('uid', 'user', 'video', 'position', 'created')
+        fields = (
+            'uid', 'user', 'video', 'position', 'created',
+        )
 
     uid = serializers.CharField(read_only=True)
-    user = UserSerializer(many=False)
-    video = VideoSerializer(many=False)
+    user = serializers.SerializerMethodField()
+    video = serializers.SerializerMethodField()
+
+    def get_user(self, obj):
+        return { 'uid': obj.user.uid }
+
+    def get_video(self, obj):
+        return { 'uid': obj.video.uid }
 
 
 class OAuth2ClientSerializer(serializers.ModelSerializer):
     class Meta:
         model = OAuth2Client
-        fields = ('user', 'client_id', 'client_name', 'website_uri',
-        'description', 'scope', 'created')
+        fields = (
+            'user', 'client_id', 'client_name', 'website_uri',
+            'description', 'scope', 'created',
+        )
 
     user = UserSerializer(fields=('uid', 'username',))
 
@@ -229,8 +263,10 @@ class OAuth2ClientSerializer(serializers.ModelSerializer):
 class OAuth2TokenSerializer(serializers.ModelSerializer):
     class Meta:
         model = OAuth2Token
-        fields = ('uid', 'client', 'token_type', 'scope', 'revoked',
-                  'expires_in', 'created')
+        fields = (
+            'uid', 'client', 'token_type', 'scope', 'revoked',
+            'expires_in', 'created',
+        )
 
     uid = serializers.CharField(read_only=True)
     client = OAuth2ClientSerializer()

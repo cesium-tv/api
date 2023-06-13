@@ -1,3 +1,5 @@
+import ast
+
 from django.db.models import Count
 from django.contrib import admin
 from django.contrib.auth.forms import (
@@ -7,12 +9,14 @@ from django.contrib.auth.forms import (
 from django.contrib.sites.models import Site
 from django.contrib.sites.admin import SiteAdmin as BaseSiteAdmin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.admin import widgets
 from django.utils.translation import gettext_lazy as _
 from django.utils.safestring import mark_safe
 from django.urls import reverse
 
 from bitfield import BitField
 from bitfield.forms import BitFieldCheckboxSelectMultiple
+from picklefield.fields import PickledObjectField, dbsafe_encode
 
 from rest.models import (
     User, Channel, Video, VideoSource, Subscription, SiteOption,
@@ -55,6 +59,13 @@ class EditLinkToInlineObject(object):
             return mark_safe(u'<a href="{u}">show</a>'.format(u=url))
         else:
             return ''
+
+
+class PickledObjectFieldTextAreaWidget(widgets.AdminTextareaWidget):
+    def value_from_datadict(self, data, files, name):
+        value = data.get(name)
+        # we gotta have a PickledObject here otherwise CharField cleaning kicks in
+        return dbsafe_encode(ast.literal_eval(value), False, 2, True)
 
 
 class UserCreationForm(BaseUserCreationForm):
@@ -153,7 +164,11 @@ class ChannelAdmin(admin.ModelAdmin):
     )
     formfield_overrides = {
             BitField: {'widget': BitFieldCheckboxSelectMultiple},
+            PickledObjectField: {
+                'widget': PickledObjectFieldTextAreaWidget,
+            },
     }
+    exclude = ('search',)
 
     def video_count(self, obj):
         return obj.video_count
