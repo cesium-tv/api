@@ -25,7 +25,7 @@ class SearchResultSerializer(serializers.Serializer):
             # Search result:
             obj_repr = {
                 'rank': obj.rank,
-                'channel': obj_repr,
+                self.related_name: obj_repr,
             }
             for field_name in self.highlight_fields:
                 field_name = f'{field_name}_highlighted'
@@ -120,6 +120,7 @@ class ChannelObjectSerializer(serializers.ModelSerializer):
 
 
 class ChannelSerializer(SearchResultSerializer):
+    related_name = 'channel'
     object_serializer_class = ChannelObjectSerializer
     highlight_fields = ('name', 'title', 'description', 'url')
 
@@ -179,8 +180,14 @@ class VideoObjectSerializer(serializers.ModelSerializer):
 
 
 class VideoSerializer(SearchResultSerializer):
+    related_name = 'video'
     object_serializer_class = VideoObjectSerializer
     highlight_fields = ['title', 'description']
+
+
+class SearchSerializer(serializers.Serializer):
+    videos = VideoSerializer(many=True)
+    channels = ChannelSerializer(many=True)
 
 
 class PlaySerializer(serializers.ModelSerializer):

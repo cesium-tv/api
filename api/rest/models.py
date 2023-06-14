@@ -23,7 +23,9 @@ from django.core.files.base import ContentFile
 from django.template import Context
 from django.template.loader import get_template
 from django.contrib.postgres.fields import ArrayField
-from django.contrib.postgres.search import SearchVectorField
+from django.contrib.postgres.search import (
+    SearchRank, SearchVectorField, SearchQuery, SearchHeadline,
+)
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.sites.models import Site
 from django.utils.functional import cached_property
@@ -182,6 +184,27 @@ class CreatedUpdatedMixin(models.Model):
 
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
+
+
+class ManagerSearchMixin:
+    search_field = 'search'
+    search_highlight_fields = []
+
+    def search(self, user, keywords):
+        queryset = self.for_user(user, annotated=True)
+
+        query = SearchQuery(keywords)
+        for field_name in self.search_highlight_fields:
+            annotated_name = f'{field_name}_highlighted'
+            queryset = queryset.annotate(**{
+                annotated_name: SearchHeadline(field_name, query),
+            })
+        return queryset \
+            .annotate(
+                rank=SearchRank('search', query),
+            ) \
+            .filter(**{self.search_field: query}) \
+            .order_by('-rank')
 
 
 class ChoiceArrayField(ArrayField):
@@ -404,6 +427,9 @@ class MenuItem(CreatedUpdatedMixin, models.Model):
     sort = models.PositiveSmallIntegerField(
         default=0, help_text='Order of item in menu')
 
+    def __str__(self):
+        return f'Menu item {self.sort}: {self.name}'
+
 
 class Package(CreatedUpdatedMixin, models.Model):
     user = models.ForeignKey(
@@ -436,7 +462,9 @@ class ChannelQuerySet(HashidsQuerySet):
         )
 
 
-class ChannelManager(HashidsManager):
+class ChannelManager(ManagerSearchMixin, HashidsManager):
+    search_highlight_fields = ('name', 'title', 'description', 'url')
+
     def get_queryset(self):
         return ChannelQuerySet(self.model, using=self._db)
 
@@ -452,7 +480,7 @@ class ChannelManager(HashidsManager):
             extern_id=extern_id, defaults=defaults)
         channel.set_metadata(original)
 
-    def for_user(self, user, annotated=True):
+    def for_user(self, user, annotated=True, pre_fetch=False):
         queryset = self.all()
 
         if annotated:
@@ -632,7 +660,9 @@ class VideoQuerySet(HashidsQuerySet):
         return queryset
 
 
-class VideoManager(HashidsManager):
+class VideoManager(ManagerSearchMixin, HashidsManager):
+    search_highlight_fields = ('title', 'description')
+
     def get_queryset(self):
         return VideoQuerySet(
             model=self.model, using=self._db, hints=self._hints)
@@ -662,7 +692,7 @@ class VideoManager(HashidsManager):
 
         return video, created
 
-    def for_user(self, user, annotated=False):
+    def for_user(self, user, annotated=False, pre_fetch=False):
         queryset = self.all()
 
         if annotated:
@@ -679,6 +709,18 @@ class VideoManager(HashidsManager):
 
             queryset = queryset.filter(Exists(subbed) | Q(channel__is_public=True))
 
+        if pre_fetch:
+            queryset = queryset \
+                .select_related('channel') \
+                .prefetch_related('sources') \
+                .prefetch_related('tags') \
+                .order_by('-published')
+
+            if user.is_authenticated:
+                queryset = queryset.annotate(cursor=Subquery(
+                    PlayCursor.objects.filter(user=user, video_id=OuterRef('id')).values('cursor')
+                ))
+        
         return queryset
 
 

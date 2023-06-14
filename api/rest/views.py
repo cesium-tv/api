@@ -37,7 +37,7 @@ from rest.permissions import CreateOrIsAuthenticatedOrReadOnly
 from rest.serializers import (
     UserSerializer, ChannelSerializer, VideoSerializer, OAuth2ClientSerializer,
     OAuth2TokenSerializer, PlaySerializer, LikeSerializer, DislikeSerializer,
-    VideoSourceSerializer, QueueSerializer, TagSerializer,
+    VideoSourceSerializer, QueueSerializer, TagSerializer, SearchSerializer,
 )
 from rest.models import (
     Video, Channel, Play, Like, Dislike, SiteOption, Brand, OAuth2Token,
@@ -257,19 +257,8 @@ class VideoViewSet(ModelViewSet):
     filterset_class = VideoFilterSet
 
     def get_queryset(self):
-        queryset = Video.objects \
-            .for_user(self.request.user, annotated=True) \
-            .select_related('channel') \
-            .prefetch_related('sources') \
-            .prefetch_related('tags') \
-            .order_by('-published')
-
-        if self.request.user.is_authenticated:
-            queryset = queryset.annotate(cursor=Subquery(
-                PlayCursor.objects.filter(user=self.request.user, video_id=OuterRef('id')).values('cursor')
-            ))
-
-        return queryset
+        return Video.objects.for_user(
+            self.request.user, annotated=True, pre_fetch=True)
 
     @action(detail=True)
     def sources(self, request, uid):
@@ -366,6 +355,44 @@ class VideoViewSet(ModelViewSet):
         q = get_object_or_404(Queue, video=video, user=request.user)
         Queue.objects.remove(q)
         return Response('', status=status.HTTP_204_NO_CONTENT)
+
+
+class SearchView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        keywords = None
+        for key_name in ('s', 'keywords'):
+            keywords = request.data.get(key_name, keywords)
+
+        if keywords is None:
+            return Response({
+                'error': 'missing keywords param (keywords or s)'},
+                status=status.HTTP_200_OK
+            )
+
+        search_videos = bool(request.data.get('search_videos', True))
+        search_channels = bool(request.data.get('search_channels', True))
+
+        search_results = {
+            'videos': Video.objects.none(),
+            'channels': Channel.objects.none(),
+        }
+        if search_videos:
+            search_results['videos'] = Video.objects.search(
+                request.user,
+                keywords=keywords,
+            )
+
+        if search_channels:
+            search_results['channels'] = Channel.objects.search(
+                request.user,
+                keywords=keywords,
+            )
+
+        serializer = SearchSerializer(search_results)
+        return Response(
+            serializer.data, status=status.HTTP_200_OK)
 
 
 class OAuthAuthCodeView(APIView):

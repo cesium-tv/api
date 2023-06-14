@@ -310,3 +310,31 @@ DJANGO_CSS_MINIFY = not DEBUG
 STRIPE_CLIENT_ID = os.getenv('DJANGO_STRIPE_CLIENT_ID')
 STRIPE_PUBLISHABLE_KEY = os.getenv('DJANGO_STRIPE_PUBLISHABLE_KEY')
 STRIPE_PRIVATE_KEY = os.getenv('DJANGO_STRIPE_PRIVATE_KEY')
+
+LOG_LEVEL = os.getenv('DJANGO_LOG_LEVEL', 'ERROR').upper()
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '%(levelname)s %(message)s'
+        },
+    },
+    'handlers': {
+        'console':{
+            'level': LOG_LEVEL,
+            'class':'logging.StreamHandler',
+            'formatter': 'simple'
+        },
+    },
+    'loggers': {
+        'django.request':{
+            'handlers': ['console'],
+            'propagate': False,
+            'level': LOG_LEVEL,
+        },
+    },
+    'root': {
+        'level': LOG_LEVEL,
+    }
+}

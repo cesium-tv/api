@@ -153,6 +153,11 @@ class SiteAdmin(BaseSiteAdmin):
     inlines = (SiteOptionInline, )
 
 
+@admin.register(MenuItem)
+class MenuItemAdmin(admin.ModelAdmin):
+    pass
+
+
 class ChannelInline(admin.TabularInline):
     model = Channel
 

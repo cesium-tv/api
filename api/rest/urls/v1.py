@@ -5,7 +5,7 @@ from rest_framework import routers
 from rest.views import (
     theme_js, theme_css, favicon, UserViewSet, ChannelViewSet, TagViewSet,
     VideoViewSet, OAuth2TokenViewSet, OAuthAuthCodeView, OAuthTokenView,
-    OAuthDeviceCodeView, OAuthDeviceCodeVerifyView,
+    OAuthDeviceCodeView, OAuthDeviceCodeVerifyView, SearchView,
 )
 
 
@@ -39,5 +39,10 @@ urlpatterns = [
         r'oauth2/token/',
         OAuthTokenView.as_view(),
         name='oauth_token_view'
+    ),
+    path(
+        r'search/',
+        SearchView.as_view(),
+        name='search_view',
     ),
 ] + router.urls

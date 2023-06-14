@@ -2,6 +2,7 @@
 
 CMD=${@:-api}
 DJANGO_MEDIA_ROOT=${DJANGO_MEDIA_ROOT:-/tmp}
+DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL:-error}
 
 /wait-for ${DJANGO_DB_HOST}:${DJANGO_DB_PORT}
 /wait-for ${DJANGO_REDIS_HOST}:${DJANGO_REDIS_PORT}
@@ -33,7 +34,7 @@ elif [ "${CMD}" == "beat" ]; then
         ARGS="${ARGS} --gid=${CELERY_GID}"
     fi
 
-    celery -A api beat -l debug${ARGS}
+    celery -A api beat -l ${DJANGO_LOG_LEVEL}${ARGS}
 
 elif [ "${CMD}" == "celery" ]; then
     if [ ! -z "${CELERY_UID}" ]; then
@@ -44,7 +45,7 @@ elif [ "${CMD}" == "celery" ]; then
         ARGS="${ARGS} --gid=${CELERY_GID}"
     fi
 
-    python manage.py celery${ARGS}
+    python manage.py celery -l ${DJANGO_LOG_LEVEL}${ARGS}
 
 elif [ "${CMD}" == "test" ]; then
     python3 manage.py test
