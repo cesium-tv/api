@@ -33,6 +33,7 @@ stripe = "*"
 videosrc = {ref = "c0851ad11dce1139ab4f45abb9e4b233f3f4567a", git = "https://github.com/cesium-tv/videosrc.git"}
 django-filter = "*"
 sentry-sdk = "*"
+spacy = "*"
 
 [dev-packages]
 flake8 = "*"

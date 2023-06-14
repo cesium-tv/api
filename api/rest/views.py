@@ -38,10 +38,11 @@ from rest.serializers import (
     UserSerializer, ChannelSerializer, VideoSerializer, OAuth2ClientSerializer,
     OAuth2TokenSerializer, PlaySerializer, LikeSerializer, DislikeSerializer,
     VideoSourceSerializer, QueueSerializer, TagSerializer, SearchSerializer,
+    TermSerializer,
 )
 from rest.models import (
     Video, Channel, Play, Like, Dislike, SiteOption, Brand, OAuth2Token,
-    OAuth2DeviceCode, OAuth2Client, Subscription, Queue, Tag, PlayCursor,
+    OAuth2DeviceCode, OAuth2Client, Subscription, Queue, Tag, PlayCursor, Term,
 )
 from rest.filters import (
     UserFilterSet, VideoFilterSet, ChannelFilterSet, PackageFilterSet,
@@ -360,6 +361,23 @@ class VideoViewSet(ModelViewSet):
 class SearchView(APIView):
     permission_classes = [AllowAny]
 
+    def get(self, request):
+        keywords = None
+        for key_name in ('s', 'keywords'):
+            keywords = request.query_params.get(key_name, keywords)
+
+        if keywords is None:
+            return Response({
+                'error': 'missing keywords param (keywords or s)'},
+                status=status.HTTP_200_OK
+            )
+
+        queryset = Term.objects \
+            .search(keywords=keywords) \
+            .order_by('-freq')
+        serializer = TermSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
     def post(self, request):
         keywords = None
         for key_name in ('s', 'keywords'):
@@ -372,23 +390,21 @@ class SearchView(APIView):
             )
 
         search_videos = bool(request.data.get('search_videos', True))
-        search_channels = bool(request.data.get('search_channels', True))
+        search_channels = bool(request.data.get('search_channels', False))
 
         search_results = {
             'videos': Video.objects.none(),
             'channels': Channel.objects.none(),
         }
         if search_videos:
-            search_results['videos'] = Video.objects.search(
-                request.user,
-                keywords=keywords,
-            )
+            search_results['videos'] = Video.objects \
+                .for_user(request.user, annotated=True) \
+                .search(keywords=keywords)
 
         if search_channels:
-            search_results['channels'] = Channel.objects.search(
-                request.user,
-                keywords=keywords,
-            )
+            search_results['channels'] = Channel.objects \
+                .for_user(request.user) \
+                .search(keywords=keywords)
 
         serializer = SearchSerializer(search_results)
         return Response(

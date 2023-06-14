@@ -19,6 +19,7 @@
     "pk": 1,
     "fields": {
       "option": 1,
+      "sort": 0,
       "name": "search",
       "created": "2022-09-01T20:10:10.827Z",
       "updated": "2022-09-01T20:10:10.827Z"
@@ -29,7 +30,19 @@
     "pk": 2,
     "fields": {
       "option": 1,
+      "sort": 1,
       "name": "home",
+      "created": "2022-09-01T20:10:10.827Z",
+      "updated": "2022-09-01T20:10:10.827Z"
+    }
+  },
+  {
+    "model": "rest.menuitem",
+    "pk": 6,
+    "fields": {
+      "option": 1,
+      "sort": 2,
+      "name": "subscriptions",
       "created": "2022-09-01T20:10:10.827Z",
       "updated": "2022-09-01T20:10:10.827Z"
     }
@@ -39,7 +52,30 @@
     "pk": 3,
     "fields": {
       "option": 1,
+      "sort": 3,
       "name": "resume",
+      "created": "2022-09-01T20:10:10.827Z",
+      "updated": "2022-09-01T20:10:10.827Z"
+    }
+  },
+  {
+    "model": "rest.menuitem",
+    "pk": 5,
+    "fields": {
+      "option": 1,
+      "sort": 4,
+      "name": "options",
+      "created": "2022-09-01T20:10:10.827Z",
+      "updated": "2022-09-01T20:10:10.827Z"
+    }
+  },
+  {
+    "model": "rest.menuitem",
+    "pk": 4,
+    "fields": {
+      "option": 1,
+      "sort": 5,
+      "name": "login",
       "created": "2022-09-01T20:10:10.827Z",
       "updated": "2022-09-01T20:10:10.827Z"
     }

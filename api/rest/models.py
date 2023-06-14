@@ -5,6 +5,7 @@ import string
 import random
 import json
 import time
+import shlex
 from os.path import splitext
 from datetime import timedelta
 from dataclasses import asdict
@@ -13,7 +14,7 @@ import sass
 from csscompressor import compress
 
 from django import forms
-from django.db import models
+from django.db import models, connection
 from django.db.models import (
     Exists, Count, OuterRef, Subquery, Func, F, Q, Max,
 )
@@ -24,7 +25,10 @@ from django.template import Context
 from django.template.loader import get_template
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.postgres.search import (
-    SearchRank, SearchVectorField, SearchQuery, SearchHeadline,
+    SearchRank, SearchQuery, SearchHeadline,
+)
+from django.contrib.postgres.search import (
+    SearchVectorField as BaseSearchVectorField
 )
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.sites.models import Site
@@ -44,6 +48,7 @@ from colorfield.fields import ColorField
 from mail_templated import send_mail
 from bitfield import BitField
 from django_celery_beat.models import PeriodicTask
+from psycopg2.extensions import register_adapter, AsIs
 
 from authlib.oauth2.rfc6749 import (
     ClientMixin, TokenMixin, AuthorizationCodeMixin,
@@ -52,8 +57,8 @@ from authlib.oauth2.rfc6749 import (
 
 HASHIDS_LENGTH = 12
 MENU_ITEMS = [
-    ('options', 'Options'),
-    ('subscriptions', 'Subscriptions'),
+    ('settings', 'Settings'),
+    ('subs', 'Subs'),
     ('again', 'Watch again'),
     ('latest', 'Latest'),
     ('oldies', 'Oldies'),
@@ -129,6 +134,21 @@ def maybe_make_aware(dt):
     return timezone.make_aware(dt, timezone=timezone.utc)
 
 
+class PostgresDefaultValueType:
+    pass
+
+
+register_adapter(PostgresDefaultValueType, lambda _: AsIs('DEFAULT'))
+
+
+# NOTE: this allows Django to manage the search field without trying to
+# provide a value during an update or insert query. The value is managed
+# by a constraint (see migrations).
+class SearchVectorField(BaseSearchVectorField):
+    def get_prep_value(self, value):
+        return PostgresDefaultValueType()
+
+
 class HashidsQuerySet(models.QuerySet):
     def get(self, *args, **kwargs):
         uid = kwargs.pop('uid', None)
@@ -186,15 +206,38 @@ class CreatedUpdatedMixin(models.Model):
     updated = models.DateTimeField(auto_now=True)
 
 
-class ManagerSearchMixin:
+def build_query(s):
+    # NOTE: Expand search query options here.
+    # - support quotes for term queries.
+    # - do wildcard (term:*) queries.
+    # - combine multiple terms with | (or)
+    # https://docs.djangoproject.com/en/3.2/ref/contrib/postgres/search/#searchquery
+    if ' ' in s:
+        return SearchQuery(s, search_type='websearch')
+
+    if s.endswith('*'):
+        s = s[:-1]
+        return SearchQuery(f"'{s}':*", search_type='raw')
+
+    return SearchQuery(s)
+
+
+class QuerySetSearchMixin:
+    # NOTE: for convenience I have named all my tsvector fields "search". But
+    # this can be overridden.
     search_field = 'search'
+    # Default field highlighting, can be set by model / queryset or overridden
+    # when calling search.
     search_highlight_fields = []
 
-    def search(self, user, keywords):
-        queryset = self.for_user(user, annotated=True)
+    def search(self, keywords, highlight_fields=None):
+        if highlight_fields is None:
+            highlight_fields = self.search_highlight_fields
 
-        query = SearchQuery(keywords)
-        for field_name in self.search_highlight_fields:
+        query = build_query(keywords)
+
+        queryset = self
+        for field_name in highlight_fields:
             annotated_name = f'{field_name}_highlighted'
             queryset = queryset.annotate(**{
                 annotated_name: SearchHeadline(field_name, query),
@@ -205,6 +248,11 @@ class ManagerSearchMixin:
             ) \
             .filter(**{self.search_field: query}) \
             .order_by('-rank')
+
+
+class ManagerSearchMixin:
+    def search(self, *args, **kwargs):
+        return self.get_queryset().search(*args, **kwargs)
 
 
 class ChoiceArrayField(ArrayField):
@@ -454,7 +502,9 @@ class Package(CreatedUpdatedMixin, models.Model):
         return self.name
 
 
-class ChannelQuerySet(HashidsQuerySet):
+class ChannelQuerySet(QuerySetSearchMixin, HashidsQuerySet):
+    search_highlight_fields = ('name', 'title', 'description', 'url')
+
     def default_annotations(self):
         return self.annotate(
             n_videos=Count('videos'),
@@ -463,8 +513,6 @@ class ChannelQuerySet(HashidsQuerySet):
 
 
 class ChannelManager(ManagerSearchMixin, HashidsManager):
-    search_highlight_fields = ('name', 'title', 'description', 'url')
-
     def get_queryset(self):
         return ChannelQuerySet(self.model, using=self._db)
 
@@ -630,7 +678,46 @@ class Tag(HashidsModelMixin, models.Model):
         return super().save(*args, **kwargs)
 
 
-class VideoQuerySet(HashidsQuerySet):
+class TermQuerySet(QuerySetSearchMixin, HashidsQuerySet):
+    search_highlight_fields = ('ngram',)
+
+
+class TermManager(ManagerSearchMixin, HashidsManager):
+    def get_queryset(self):
+        return TermQuerySet(self.model, using=self._db)
+
+    def bulk_create(self, terms):
+        terms = [
+            {'ngram': i[0], 'freq': i[1]} for i in terms
+        ]
+        with connection.cursor() as c:
+            c.executemany('''
+            INSERT INTO "rest_term" ("ngram", "freq")
+            VALUES (%(ngram)s, %(freq)s)
+            ON CONFLICT ("ngram") DO
+            UPDATE SET "freq" = "rest_term"."freq" + %(freq)s
+            WHERE "rest_term"."ngram" = %(ngram)s''', terms)
+
+
+class Term(HashidsModelMixin, models.Model):
+    class Meta:
+        indexes = [
+            GinIndex(fields=['search']),
+        ]
+
+    ngram = models.CharField(max_length=64, unique=True, db_collation='ci')
+    freq = models.PositiveIntegerField(default=1)
+    search = SearchVectorField()
+
+    objects = TermManager()
+
+    def __str__(self):
+        return self.ngram
+
+
+class VideoQuerySet(QuerySetSearchMixin, HashidsQuerySet):
+    search_highlight_fields = ('title', 'description')
+
     def default_annotations(self, user=None):
         queryset = self.annotate(
                 n_plays=Count('plays'),
@@ -661,8 +748,6 @@ class VideoQuerySet(HashidsQuerySet):
 
 
 class VideoManager(ManagerSearchMixin, HashidsManager):
-    search_highlight_fields = ('title', 'description')
-
     def get_queryset(self):
         return VideoQuerySet(
             model=self.model, using=self._db, hints=self._hints)

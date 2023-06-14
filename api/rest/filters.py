@@ -16,20 +16,7 @@ class SearchFilter(filters.CharFilter):
 
     # Performs full-text search.
     def filter(self, queryset, value):
-        if value in EMPTY_VALUES:
-            return queryset
-        query = SearchQuery(value)
-        for field_name in self.highlight_fields:
-            annotated_name = f'{field_name}_highlighted'
-            queryset = queryset.annotate(**{
-                annotated_name: SearchHeadline(field_name, query),
-            })
-        return queryset \
-            .annotate(
-                rank=SearchRank('search', query),
-            ) \
-            .filter(search=query) \
-            .order_by('-rank')
+        return queryset.search(value)
 
 
 class CICharFilter(filters.CharFilter):

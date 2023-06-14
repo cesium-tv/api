@@ -38,6 +38,7 @@ RUN apt update && \
     wget https://raw.githubusercontent.com/eficode/wait-for/master/wait-for -O /wait-for && \
     pip3 install pipenv && \
     pipenv install --system --dev && \
+    python3 -m spacy download en_core_web_sm && \
     apt remove -y git && \
     apt autoremove -y && \
     rm -rf /var/lib/apt/lists/*

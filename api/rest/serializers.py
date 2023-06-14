@@ -7,7 +7,7 @@ from drf_recaptcha.fields import ReCaptchaV2Field
 
 from rest.models import (
     Channel, VideoSource, Video,  OAuth2Token, OAuth2Client, OAuth2Code, Play,
-    Like, Dislike, Subscription, Queue, Tag,
+    Like, Dislike, Subscription, Queue, Tag, Term,
 )
 
 
@@ -132,6 +132,14 @@ class TagSerializer(serializers.ModelSerializer):
 
     uid = serializers.CharField(read_only=True)
     n_tagged = serializers.IntegerField()
+
+
+class TermSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Term
+        fields = ('uid', 'ngram', 'freq')
+
+    uid = serializers.CharField(read_only=True)
 
 
 class VideoSourceSerializer(serializers.ModelSerializer):

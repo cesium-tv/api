@@ -1,15 +1,29 @@
 import logging
+from collections import Counter
+
+import spacy
 
 from django.db.models.signals import post_save, m2m_changed, pre_delete
 from django.dispatch import receiver
 from django.db.models import Value
 from django.contrib.postgres.search import SearchVector
 
-from rest.models import Video, Channel, Tag
+from rest.models import Video, Channel, Tag, Term
 
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.addHandler(logging.NullHandler())
+
+NLP = spacy.load('en_core_web_sm')
+
+
+def extract_ngrams(instance, field_names):
+    for field_name in field_names:
+        text = getattr(instance, field_name)
+        if text is None:
+            continue
+        for ngram in NLP(text).noun_chunks:
+            yield ngram.text
 
 
 @receiver(pre_delete, sender=Tag)
@@ -26,16 +40,17 @@ def tag_delete_search(sender, instance, **kwargs):
 @receiver(post_save, sender=Video)
 @receiver(m2m_changed, sender=Video.tags.through)
 def update_video_search(sender, instance, **kwargs):
-    LOGGER.debug('Updating search vectors for video id: %i', instance.id)
-    #tags_str = ' '.join(instance.tags.all().values_list('name', flat=True))
-    Video.objects \
-        .filter(id=instance.id) \
-        .update(search=SearchVector('title', 'description'))  #, Value(tags_str)))
+    LOGGER.debug('Updating search terms for video id: %i', instance.id)
+    ngrams = Counter(
+        extract_ngrams(instance, ('title', 'description'))
+    )
+    Term.objects.bulk_create(ngrams.items())
 
 
 @receiver(post_save, sender=Channel)
-def update_video_search(sender, instance, created, **kwargs):
-    LOGGER.debug('Updating search vectors for channel id: %i', instance.id)
-    Channel.objects \
-        .filter(id=instance.id) \
-        .update(search=SearchVector('name', 'title', 'description', 'url'))
+def update_channel_search(sender, instance, created, **kwargs):
+    LOGGER.debug('Updating search terms for channel id: %i', instance.id)
+    ngrams = Counter(
+        extract_ngrams(instance, ('name', 'title', 'description', 'url'))
+    )
+    Term.objects.bulk_create(ngrams.items())
